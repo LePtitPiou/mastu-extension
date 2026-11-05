@@ -1,0 +1,410 @@
+/* ========================================
+   MASTU EXTENSION - STYLE.CSS
+======================================== */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    --background: #18181b;
+    --surface: #232329;
+    --surface-hover: #2c2c34;
+    --border: #35353d;
+    --text: #f4f4f5;
+    --text-secondary: #a1a1aa;
+    --twitch: #a970ff;
+    --youtube: #ff334f;
+}
+
+html {
+    width: 100%;
+    min-width: 300px;
+}
+
+body {
+    width: 380px;
+    min-height: 100px;
+    background: var(--background);
+    color: var(--text);
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 13px;
+    overflow-x: hidden;
+}
+
+button, a {
+    font: inherit;
+}
+
+.app {
+    width: 100%;
+    padding: 20px;
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--border);
+}
+
+.brand h1 {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.7px;
+}
+
+.brand h1 span {
+    color: var(--text-secondary);
+    font-weight: 400;
+}
+
+.brand p {
+    margin-top: 5px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.channels-section {
+    margin-top: 19px;
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 11px;
+}
+
+.section-header h2 {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.channel-count {
+    color: var(--text-secondary);
+    font-size: 10px;
+}
+
+.channels-list {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+}
+
+.channel-card {
+    overflow: hidden;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    transition: background 0.18s ease, border-color 0.18s ease;
+}
+
+.channel-card:hover,
+.channel-card.is-expanded {
+    background: var(--surface-hover);
+    border-color: #484852;
+}
+
+.channel-row {
+    display: flex;
+    align-items: center;
+    min-height: 70px;
+    padding: 9px 10px;
+    gap: 8px;
+}
+
+.channel-expand {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+    gap: 11px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.channel-expand:focus-visible,
+.external-link:focus-visible,
+.chevron-button:focus-visible,
+#refresh-button:focus-visible {
+    outline: 2px solid #f4f4f5;
+    outline-offset: 3px;
+    border-radius: 5px;
+}
+
+.channel-avatar {
+    display: block;
+    width: 46px;
+    height: 46px;
+    flex: 0 0 46px;
+    overflow: hidden;
+    border-radius: 50%;
+    background: #35353d;
+    object-fit: cover;
+    border: 0;
+    outline: 0;
+    box-shadow: none;
+}
+
+.channel-name {
+    min-width: 0;
+    flex: 0 1 auto;
+    overflow: hidden;
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.platform-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 17px;
+    height: 17px;
+    flex: 0 0 17px;
+    margin-left: 1px;
+}
+
+.platform-icon svg {
+    display: block;
+    width: 17px;
+    height: 17px;
+}
+
+.platform-icon.twitch {
+    color: var(--twitch);
+}
+
+.platform-icon.youtube {
+    color: var(--youtube);
+}
+
+.twitch-status {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    margin-left: 5px;
+    padding: 4px 7px;
+    border-radius: 5px;
+    font-size: 9px;
+    line-height: 1;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.twitch-status.status-live {
+    color: #ffffff;
+    background: #d92d45;
+}
+
+.twitch-status.status-live::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    margin-right: 5px;
+    border-radius: 50%;
+    background: #ffffff;
+    animation: live-pulse 1.4s ease-in-out infinite;
+}
+
+.twitch-status.status-offline {
+    color: #c4c4cc;
+    background: #3b3b45;
+}
+
+.twitch-status.status-unavailable {
+    color: #f4c66a;
+    background: #51432a;
+}
+
+@keyframes live-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+}
+
+.channel-actions {
+    display: flex;
+    align-items: center;
+    flex: 0 0 auto;
+    gap: 3px;
+}
+
+.external-link,
+.chevron-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-secondary);
+    text-decoration: none;
+    cursor: pointer;
+    transition: color 0.18s ease, background 0.18s ease;
+}
+
+.external-link:hover,
+.chevron-button:hover {
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.07);
+}
+
+.external-icon,
+.chevron {
+    display: inline-flex;
+    width: 17px;
+    height: 17px;
+}
+
+.external-icon svg,
+.chevron svg {
+    width: 100%;
+    height: 100%;
+}
+
+.chevron svg {
+    transition: transform 0.2s ease;
+}
+
+.chevron.is-expanded svg {
+    transform: rotate(180deg);
+}
+
+.channel-details {
+    padding: 12px 14px 14px 67px;
+    border-top: 1px solid var(--border);
+    animation: reveal 0.18s ease;
+}
+
+.channel-details[hidden] {
+    display: none;
+}
+
+.details-heading {
+    color: var(--text);
+    font-size: 11px;
+    font-weight: 700;
+    margin-bottom: 5px;
+}
+
+.details-placeholder {
+    color: var(--text-secondary);
+    font-size: 11px;
+    line-height: 1.5;
+}
+
+.details-error {
+    margin-top: 7px;
+    color: #f59e0b;
+    font-size: 10px;
+}
+
+.loading-message,
+.error-message,
+.empty-message {
+    padding: 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-secondary);
+    font-size: 12px;
+    text-align: center;
+}
+
+.error-message {
+    color: #f59e0b;
+}
+
+.footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 20px;
+    padding-top: 13px;
+    border-top: 1px solid var(--border);
+}
+
+.footer p {
+    font-size: 10px;
+    color: var(--text-secondary);
+}
+
+#refresh-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 30px;
+    padding: 7px 12px;
+    background: var(--surface-hover);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.18s ease, border-color 0.18s ease;
+}
+
+#refresh-button:hover {
+    background: #393943;
+    border-color: #555560;
+}
+
+#refresh-button:disabled {
+    opacity: 0.5;
+    cursor: wait;
+}
+
+@keyframes reveal {
+    from { opacity: 0; transform: translateY(-3px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 350px) {
+    body {
+        width: 100%;
+        min-width: 300px;
+    }
+
+    .app {
+        padding: 14px;
+    }
+
+    .brand h1 {
+        font-size: 20px;
+    }
+
+    .channel-avatar {
+        width: 40px;
+        height: 40px;
+        flex-basis: 40px;
+    }
+
+    .channel-details {
+        padding-left: 58px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}

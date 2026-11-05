@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "Mastu Extension",
+  "version": "1.4.0",
+  "description": "Retrouve les chaînes Twitch et YouTube de Mastu au même endroit.",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Mastu Extension"
+  },
+  "host_permissions": [
+    "https://mastu-extension-api.onrender.com/*"
+  ]
+}
