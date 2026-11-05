@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mastu Extension</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <a class="brand" href="https://www.youtube.com/@mastu" target="_blank" rel="noopener noreferrer" aria-label="Mastu sur YouTube">
+        <span class="brand-mark" aria-hidden="true">M</span>
+        <span class="brand-copy"><strong>Mastu <span>Extension</span></strong><small>Ton espace Mastu</small></span>
+      </a>
+      <nav class="top-actions" aria-label="Préférences rapides">
+        <button class="glass-button" id="theme-toggle" type="button" aria-pressed="true" title="Activer ou désactiver le mode sombre"><span id="theme-icon" aria-hidden="true">☀</span><span id="theme-label">Mode sombre</span></button>
+        <button class="glass-button" id="settings-toggle" type="button" aria-expanded="false" aria-controls="settings-panel" title="Ouvrir les paramètres">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z"/><path d="m19.4 15 .1.1a1.8 1.8 0 0 1-2.5 2.5l-.1-.1a1.8 1.8 0 0 0-3 .9v.2a1.8 1.8 0 0 1-3.6 0v-.2a1.8 1.8 0 0 0-3-.9l-.1.1a1.8 1.8 0 0 1-2.5-2.5l.1-.1a1.8 1.8 0 0 0-.9-3h-.2a1.8 1.8 0 0 1 0-3.6h.2a1.8 1.8 0 0 0 .9-3l-.1-.1a1.8 1.8 0 0 1 2.5-2.5l.1.1a1.8 1.8 0 0 0 3-.9v-.2a1.8 1.8 0 0 1 3.6 0v.2a1.8 1.8 0 0 0 3 .9l.1-.1a1.8 1.8 0 0 1 2.5 2.5l-.1.1a1.8 1.8 0 0 0 .9 3h.2a1.8 1.8 0 0 1 0 3.6h-.2a1.8 1.8 0 0 0-.9 3Z"/></svg>
+          <span>Paramètres</span>
+        </button>
+      </nav>
+    </header>
+
+    <section class="welcome" aria-labelledby="welcome-title">
+      <p class="eyebrow">BIENVENUE</p>
+      <h1 id="welcome-title">Tout l'univers de <span>Mastu.</span></h1>
+      <p class="welcome-description">Retrouve ses chaînes et ne manque aucun nouveau contenu.</p>
+      <div class="welcome-orb orb-one" aria-hidden="true"></div><div class="welcome-orb orb-two" aria-hidden="true"></div>
+    </section>
+
+    <section class="settings-panel" id="settings-panel" aria-labelledby="settings-title" hidden>
+      <div class="settings-heading"><div><p class="eyebrow">PERSONNALISATION</p><h2 id="settings-title">Paramètres d'apparence</h2></div><button class="icon-button" id="close-settings" type="button" aria-label="Fermer les paramètres">×</button></div>
+      <div class="setting-group"><div class="setting-label-row"><label for="glass-opacity">Opacité du Liquid Glass</label><output id="glass-opacity-value" for="glass-opacity">72 %</output></div><input id="glass-opacity" type="range" min="25" max="95" value="72"><p class="setting-hint">Règle la transparence des boutons et des cartes.</p></div>
+      <div class="setting-group"><div class="setting-label-row"><label for="glass-blur">Flou du Liquid Glass</label><output id="glass-blur-value" for="glass-blur">18 px</output></div><input id="glass-blur" type="range" min="0" max="30" value="18"><p class="setting-hint">Augmente ou réduit l'effet de verre dépoli.</p></div>
+      <div class="setting-group"><div class="setting-label-row"><label for="corner-radius">Arrondi des éléments</label><output id="corner-radius-value" for="corner-radius">20 px</output></div><input id="corner-radius" type="range" min="8" max="32" value="20"><p class="setting-hint">Ajuste les coins des cartes et des boutons.</p></div>
+      <div class="setting-group background-setting"><div><label class="setting-main-label" for="background-upload">Image de fond de la popup</label><p class="setting-hint">L'image couvre toute la fenêtre. Sans image, le fond d'origine est conservé.</p></div><label class="glass-button upload-button" for="background-upload">＋ Choisir une image</label><input id="background-upload" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden><button class="glass-button" id="remove-background" type="button">Retirer l'image</button><p class="setting-hint" id="background-status" role="status">Aucune image personnalisée.</p></div>
+      <div class="settings-footer"><button class="glass-button" id="reset-settings" type="button">Réinitialiser l'apparence</button></div>
+    </section>
+
+    <section class="channels-section" aria-labelledby="twitch-title"><div class="section-heading"><span class="section-icon twitch-heading-icon" aria-hidden="true">T</span><div><h2 id="twitch-title">Twitch</h2><p>Les lives et les streams</p></div></div><div id="twitch-list" class="channels-list" aria-live="polite"><p class="loading-message">Chargement des chaînes…</p></div></section>
+    <section class="channels-section youtube-section" aria-labelledby="youtube-title"><div class="section-heading"><span class="section-icon youtube-heading-icon" aria-hidden="true">▶</span><div><h2 id="youtube-title">YouTube</h2><p>Les vidéos et les chaînes</p></div></div><div id="youtube-list" class="channels-list" aria-live="polite"><p class="loading-message">Chargement des chaînes…</p></div></section>
+    <footer class="footer"><span>Fait pour les fans de Mastu</span><span class="footer-dot" aria-hidden="true"></span><span>Actualisation automatique</span></footer>
+  </main>
+  <script src="script.js"></script>
+</body>
+</html>
