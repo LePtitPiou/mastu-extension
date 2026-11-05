@@ -1,0 +1,20 @@
+
+{
+  "name": "mastu-extension-api",
+  "version": "1.2.0",
+  "description": "Backend sécurisé pour Mastu Extension",
+  "main": "server.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0"
+  }
+}
