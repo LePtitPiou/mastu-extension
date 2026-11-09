@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#11131b">
+  <title>Mastu Extension</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div class="brand" aria-label="Mastu Extension">
+        <span class="brand-copy"><strong>Mastu Extension</strong></span>
+      </div>
+
+      <div class="settings-wrapper">
+        <button class="settings-toggle" id="settings-toggle" type="button"
+          aria-expanded="false" aria-controls="settings-menu" aria-label="Ouvrir la personnalisation"
+          title="Personnalisation">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z"/>
+            <path d="m19.4 15 .1.1a1.8 1.8 0 0 1-2.5 2.5l-.1-.1a1.8 1.8 0 0 0-3 .9v.2a1.8 1.8 0 0 1-3.6 0v-.2a1.8 1.8 0 0 0-3-.9l-.1.1a1.8 1.8 0 0 1-2.5-2.5l.1-.1a1.8 1.8 0 0 0-.9-3h-.2a1.8 1.8 0 0 1 0-3.6h.2a1.8 1.8 0 0 0 .9-3l-.1-.1a1.8 1.8 0 0 1 2.5-2.5l.1.1a1.8 1.8 0 0 0 3-.9v-.2a1.8 1.8 0 0 1 3.6 0v.2a1.8 1.8 0 0 0 3 .9l.1-.1a1.8 1.8 0 0 1 2.5 2.5l-.1.1a1.8 1.8 0 0 0 .9 3h.2a1.8 1.8 0 0 1 0 3.6h-.2a1.8 1.8 0 0 0-.9 3Z"/>
+          </svg>
+        </button>
+
+        <section class="settings-menu" id="settings-menu" aria-labelledby="settings-title" hidden>
+          <div class="settings-heading">
+            <div><p class="eyebrow">PERSONNALISATION</p><h2 id="settings-title">Apparence</h2></div>
+            <button class="close-settings" id="close-settings" type="button" aria-label="Fermer la personnalisation">×</button>
+          </div>
+          <div class="preference-row">
+            <span class="preference-copy"><strong>Mode sombre</strong><small>Basculer entre le thème sombre et clair</small></span>
+            <button class="switch" id="theme-toggle" type="button" role="switch" aria-checked="true" aria-label="Mode sombre"><span></span></button>
+          </div>
+          <div class="preference-row">
+            <span class="preference-copy"><strong>Liquid Glass</strong><small>Activer ou désactiver l'effet de verre</small></span>
+            <button class="switch" id="glass-toggle" type="button" role="switch" aria-checked="true" aria-label="Effet Liquid Glass"><span></span></button>
+          </div>
+          <div class="background-setting">
+            <div class="background-copy"><strong>Image de fond</strong><small>Choisis une image pour personnaliser la fenêtre</small></div>
+            <div class="background-actions">
+              <label class="glass-button upload-button" for="background-upload">Choisir une image</label>
+              <input id="background-upload" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+              <button class="text-button" id="remove-background" type="button">Retirer l’image</button>
+            </div>
+            <p class="setting-status" id="background-status" role="status">Aucune image personnalisée.</p>
+          </div>
+        </section>
+      </div>
+    </header>
+
+    <nav class="main-nav" aria-label="Navigation principale">
+      <button class="nav-tab is-active" type="button" data-page="home" aria-current="page">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z"/></svg>
+        Accueil
+      </button>
+      <button class="nav-tab" type="button" data-page="channels">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16M4 12h16M4 19h16"/><circle cx="8" cy="5" r="1.5"/><circle cx="16" cy="12" r="1.5"/><circle cx="10" cy="19" r="1.5"/></svg>
+        Chaînes
+      </button>
+    </nav>
+
+    <section class="page is-active" id="page-home" data-page-panel="home" aria-labelledby="home-title">
+      <div class="page-intro">
+        <p class="eyebrow">MASTU EN DIRECT ET EN VIDÉO</p>
+        <h1 id="home-title">À la une</h1>
+        <p>Le dernier contenu publié sur l'ensemble de ses chaînes.</p>
+      </div>
+      <div id="featured-content" class="featured-content" aria-live="polite" aria-busy="true">
+        <p class="loading-message">Chargement du dernier contenu…</p>
+      </div>
+      <div class="home-update" id="home-update" aria-live="polite"></div>
+    </section>
+
+    <section class="page" id="page-channels" data-page-panel="channels" aria-labelledby="channels-title" hidden>
+      <div class="page-intro">
+        <p class="eyebrow">TOUTES LES PLATEFORMES</p>
+        <h1 id="channels-title">Les chaînes</h1>
+        <p>Retrouve les dernières publications et les lives en cours.</p>
+      </div>
+      <div id="channels-list" class="channels-list" aria-live="polite" aria-busy="true">
+        <p class="loading-message">Chargement des chaînes…</p>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <span>Fait pour les fans de Mastu</span><span class="footer-dot" aria-hidden="true"></span>
+      <span>Actualisation automatique</span>
+    </footer>
+  </main>
+
+  <!-- Modèle de la mise en avant : toute la structure est définie en HTML. -->
+  <template id="featured-template">
+    <article class="featured-card">
+      <a class="featured-media" href="#" target="_blank" rel="noopener noreferrer">
+        <img class="featured-thumbnail" src="" alt="" loading="lazy">
+        <span class="featured-live-badge" hidden>LIVE</span>
+        <span class="featured-duration"></span>
+      </a>
+      <div class="featured-info">
+        <div class="featured-meta"><span class="featured-platform"></span><span class="featured-age"></span></div>
+        <h2 class="featured-title"></h2>
+        <div class="featured-stats"></div>
+        <a class="featured-open" href="#" target="_blank" rel="noopener noreferrer">Regarder <span aria-hidden="true">↗</span></a>
+      </div>
+    </article>
+  </template>
+
+  <!-- Modèle d'une chaîne : les données sont injectées par JavaScript, pas sa structure. -->
+  <template id="channel-card-template">
+    <article class="channel-card">
+      <div class="channel-row">
+        <button class="channel-expand" type="button" aria-expanded="false">
+          <img class="channel-avatar" src="" alt="" loading="lazy">
+          <span class="channel-identity">
+            <span class="channel-name"></span>
+            <span class="channel-subline">
+              <span class="platform-icon" aria-label="Plateforme">
+                <svg class="platform-twitch" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 2 2 6v14h5v3h3l3-3h4l5-5V2H4zm16 12-3 3h-5l-3 3v-3H5V4h15v10z"/><path fill="currentColor" d="M10 7h2v6h-2zm5 0h2v6h-2z"/></svg>
+                <svg class="platform-youtube" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.6 12 3.6 12 3.6s-7.5 0-9.4.5A3 3 0 0 0 .5 6.2 31 31 0 0 0 0 12a31 31 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.5 9.4.5 9.4.5s7.5 0 9.4-.5a3 3 0 0 0 2.1-2.1A31 31 0 0 0 24 12a31 31 0 0 0-.5-5.8ZM9.6 15.6V8.4l6.2 3.6-6.2 3.6Z"/></svg>
+              </span>
+              <span class="channel-status"></span>
+            </span>
+          </span>
+        </button>
+        <div class="channel-actions">
+          <a class="glass-icon-button external-link" href="#" target="_blank" rel="noopener noreferrer" title="Ouvrir la chaîne" aria-label="Ouvrir la chaîne">↗</a>
+          <button class="glass-icon-button chevron-button" type="button" aria-expanded="false" aria-label="Afficher les détails">
+            <span class="chevron"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></span>
+          </button>
+        </div>
+      </div>
+      <div class="channel-details" hidden>
+        <div class="channel-content-card">
+          <a class="channel-content-media" href="#" target="_blank" rel="noopener noreferrer">
+            <img class="content-thumbnail" src="" alt="" loading="lazy">
+            <span class="content-duration"></span>
+          </a>
+          <div class="channel-content-info">
+            <span class="content-kind"></span>
+            <h3 class="content-title"></h3>
+            <p class="content-stats"></p>
+            <p class="content-age"></p>
+          </div>
+        </div>
+        <p class="channel-content-empty" hidden></p>
+      </div>
+    </article>
+  </template>
+
+  <template id="message-template"><p class="empty-message"></p></template>
+  <script src="script.js"></script>
+</body>
+</html>
