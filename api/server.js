@@ -8,7 +8,6 @@ const {
   TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET, YOUTUBE_API_KEY,
   CHROME_EXTENSION_IDS = '', CACHE_TTL_SECONDS = '60',
   ADMIN_TOKEN,        // (nouveau, optionnel) protège POST /api/announcement
-  TWITCH_USER_TOKEN,  // (optionnel) token de Mastu avec moderator:read:followers -> nombre de followers
   PORT = 3000,
 } = process.env;
 
@@ -17,8 +16,12 @@ const YT_TTL = Math.max(TTL, 5 * 60 * 1000); // protège le quota YouTube (10 00
 const ALLOWED = CHROME_EXTENSION_IDS.split(',').map(s => s.trim()).filter(Boolean);
 
 const TWITCH_LOGIN = 'mastu';
-// À VÉRIFIER : handles (ou { id: 'UC...' }) des 3 chaînes YouTube
-const YT_CHANNELS = [{ handle: '@Mastu' }, { handle: '@Mastu2nd' }, { handle: '@masturediffusions' }];
+// Chaînes YouTube : par @handle ou par ID ({ id: 'UC...' })
+const YT_CHANNELS = [
+  { handle: '@Mastu' },
+  { id: 'UCLnv0iKl-QbLnkuF-aSZKTQ' }, // Mastu Gear 2
+  { id: 'UCW2JcUbafBUzIYP6X1-3YJQ' }, // Mastu+
+];
 
 // ---------- cache ----------
 const cache = new Map(), inflight = new Map();
@@ -57,9 +60,12 @@ async function helix(p, token) {
 }
 async function getTwitch() {
   const u = (await helix('/users?login=' + TWITCH_LOGIN)).data[0];
+  if (!u) throw new Error('Chaîne Twitch introuvable : ' + TWITCH_LOGIN);
+  // Si l'un de ces appels échoue, la chaîne reste affichée (hors ligne / sans rediffusion)
+  const none = { data: [] };
   const [streams, vods] = await Promise.all([
-    helix('/streams?user_id=' + u.id),
-    helix(`/videos?user_id=${u.id}&type=archive&first=1`),
+    helix('/streams?user_id=' + u.id).catch(e => { console.error(e.message); return none; }),
+    helix(`/videos?user_id=${u.id}&type=archive&first=1`).catch(e => { console.error(e.message); return none; }),
   ]);
   const s = streams.data[0];
   let live = null;
@@ -75,14 +81,14 @@ async function getTwitch() {
     } catch (_) { /* pas de session partagée */ }
     live = {
       id: s.id, title: s.title, game: s.game_name, viewers: s.viewer_count, startedAt: s.started_at,
-      thumbnail: s.thumbnail_url.replace('{width}', '640').replace('{height}', '360'),
+      thumbnail: (s.thumbnail_url || '').replace('{width}', '640').replace('{height}', '360'),
       url: 'https://www.twitch.tv/' + u.login, participants,
     };
   }
   const v = vods.data[0];
   return {
     platform: 'twitch', id: 'twitch:' + u.id, name: u.display_name, handle: u.login, logo: u.profile_image_url,
-    banner: u.offline_image_url || '', description: u.description, subscribers,
+    banner: u.offline_image_url || '', description: u.description, subscribers: null,
     url: 'https://www.twitch.tv/' + u.login, live,
     lastVod: v ? {
       id: v.id, title: v.title, url: v.url, views: v.view_count, publishedAt: v.published_at,
