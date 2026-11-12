@@ -18,7 +18,7 @@ const ALLOWED = CHROME_EXTENSION_IDS.split(',').map(s => s.trim()).filter(Boolea
 
 const TWITCH_LOGIN = 'mastu';
 // À VÉRIFIER : handles (ou { id: 'UC...' }) des 3 chaînes YouTube
-const YT_CHANNELS = [{ handle: '@Mastu' }, { handle: '@Mastu2nd' }, { handle: '@mastureddifusions' }];
+const YT_CHANNELS = [{ handle: '@Mastu' }, { handle: '@Mastu2nd' }, { handle: '@masturediffusions' }];
 
 // ---------- cache ----------
 const cache = new Map(), inflight = new Map();
