@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "Mastu Extension",
+  "version": "1.0.0",
+  "description": "L'extension des fans de Mastu : live, vidéos, annonces et Crazy Coins Farmer.",
+  "icons": { "16": "icons/icon16.png", "48": "icons/icon48.png", "128": "icons/icon128.png" },
+  "action": { "default_popup": "popup.html", "default_icon": { "16": "icons/icon16.png", "48": "icons/icon48.png" } },
+  "background": { "service_worker": "background.js" },
+  "permissions": ["storage", "alarms", "notifications"],
+  "host_permissions": ["https://*.onrender.com/*"],
+  "content_scripts": [
+    { "matches": ["https://www.twitch.tv/*"], "js": ["farmer.js"], "run_at": "document_idle" }
+  ]
+}
