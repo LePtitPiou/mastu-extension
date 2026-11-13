@@ -2,7 +2,11 @@ const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const nf = new Intl.NumberFormat("fr-FR", { notation: "compact", maximumFractionDigits: 1 });
 const rtf = new Intl.RelativeTimeFormat("fr", { numeric: "auto" });
-const S = { data: null, notifs: [], settings: { ...DEFAULTS }, open: new Set(), claimed: 0, updatedAt: 0, error: false };
+const S = {
+  data: null, notifs: [], settings: { ...DEFAULTS }, open: new Set(),
+  claimed: 0, updatedAt: 0, error: false,
+  slides: [], slide: 0, guests: [], guest: 0, liveStart: null, sig: {},
+};
 
 /* ---------- utilitaires ---------- */
 function ago(ts) {
@@ -12,13 +16,27 @@ function ago(ts) {
   return Math.abs(h) < 24 ? rtf.format(h, "hour") : rtf.format(Math.round(h / 24), "day");
 }
 function setImg(img, src) { img.hidden = !src; if (src) img.src = src; }
-function fillLogos(box, urls) {
-  const tpl = $("#tpl-logo");
-  box.replaceChildren(...urls.filter(Boolean).map(u => {
-    const n = tpl.content.firstElementChild.cloneNode(true);
-    n.src = u;
-    return n;
-  }));
+const ping = () => { try { chrome.runtime.sendMessage({ type: "refresh" })?.catch?.(() => {}); } catch (_) {} };
+
+/* ---------- préférences de chaînes (ordre, visibilité, notifications) ---------- */
+const prefs = () => ({ order: [], hidden: {}, muted: {}, ...(S.settings.channelPrefs || {}) });
+function orderedChannels(all = false) {
+  const chans = S.data?.channels || [], p = prefs();
+  const rank = id => { const i = p.order.indexOf(id); return i < 0 ? 1000 + chans.findIndex(c => c.id === id) : i; };
+  const sorted = [...chans].sort((a, b) => rank(a.id) - rank(b.id));
+  return all ? sorted : sorted.filter(c => !p.hidden[c.id]);
+}
+const savePrefs = next => chrome.storage.sync.set({ channelPrefs: next });
+function setPref(key, id, value) {
+  const p = prefs();
+  p[key] = { ...p[key], [id]: value };
+  return savePrefs(p);
+}
+function movePref(id, d) {
+  const ids = orderedChannels(true).map(c => c.id), i = ids.indexOf(id), j = i + d;
+  if (i < 0 || j < 0 || j >= ids.length) return;
+  [ids[i], ids[j]] = [ids[j], ids[i]];
+  return savePrefs({ ...prefs(), order: ids });
 }
 
 /* ---------- chargement ---------- */
@@ -40,6 +58,7 @@ function render() {
   renderHome();
   renderChannels();
   renderNotifs();
+  renderPrefs();
   $("#banner-error").hidden = !S.error;
   const fc = $("#farmer-claimed");
   if (fc) fc.textContent = S.claimed;
@@ -48,44 +67,104 @@ function render() {
 
 /* ---------- accueil ---------- */
 function renderHome() {
-  const d = S.data, a = d?.announcement, now = d?.now;
+  const d = S.data, a = d?.announcement;
   $("#announce-text").textContent = a?.text || "Aucune annonce pour le moment.";
   const al = $("#announce-link");
   al.hidden = !a?.link;
   if (a?.link) al.href = a.link;
   $("#announce-date").textContent = a?.date ? new Date(a.date).toLocaleString("fr-FR") : "";
 
-  $("#now-empty").hidden = !!now;
-  $("#now-link").hidden = !now;
-  if (!now) return;
+  const vis = orderedChannels();
+  const twitch = vis.find(c => c.platform === "twitch");
+  renderLive(twitch);
+  S.slides = vis.filter(c => c.platform === "youtube" && c.latest);
+  renderSlide();
+  $("#home-empty").hidden = !!twitch?.live || S.slides.length > 0;
+}
 
-  const live = now.type === "live";
-  const item = live ? now.live : now.video;
-  const people = live ? [now.channel, ...(now.live.participants || [])] : [now.channel];
+function renderLive(twitch) {
+  const live = twitch?.live;
+  $("#live").hidden = !live;
+  if (!live) {
+    S.guests = []; S.liveStart = null;
+    const pl = $("#live-player"); // site : on arrête le lecteur quand le live se termine
+    if (pl && pl.getAttribute("src")) { pl.removeAttribute("src"); delete pl.dataset.channel; }
+    return;
+  }
 
-  $("#now-link").href = item.url;
-  fillLogos($("#now-logos"), people.map(p => p.logo));
-  $("#now-channel").textContent = people.map(p => p.name).join(" × ");
-  $("#now-handle").textContent = people.map(p => p.handle).join(" × ");
-  setImg($("#now-thumb"), live ? item.thumbnail + "?t=" + Math.floor(Date.now() / 60000) : item.thumbnail);
-  $("#now-title").textContent = item.title;
-  $("#now-live").hidden = !live;
-  $("#now-count").textContent = live ? `${nf.format(item.viewers)} spectateurs` : `${nf.format(item.views)} vues`;
-  $("#now-duration").hidden = !live;
+  $("#live-link").href = live.url;
+  S.liveStart = Date.parse(live.startedAt);
+
+  // site web : lecteur Twitch sans son ; extension : aperçu actualisé
+  const wrap = $("#live-player-wrap");
+  if (wrap) {
+    const pl = $("#live-player");
+    wrap.hidden = false;
+    $("#live-media").hidden = true;
+    if (pl.dataset.channel !== twitch.handle) {
+      pl.dataset.channel = twitch.handle;
+      pl.src = `https://player.twitch.tv/?channel=${encodeURIComponent(twitch.handle)}&parent=${location.hostname}&muted=true&autoplay=true`;
+    }
+  } else {
+    setImg($("#live-thumb"), live.thumbnail ? live.thumbnail + "?t=" + Math.floor(Date.now() / 30000) : "");
+  }
+
+  setImg($("#live-logo"), twitch.logo);
+  $("#live-name").textContent = twitch.name;
+  S.guests = live.guests || [];
+  const w = $("#live-with");
+  w.hidden = !S.guests.length;
+  if (S.guests.length) w.textContent = "Avec " + S.guests.slice(0, 2).map(g => g.name).join(", ") + (S.guests.length > 2 ? "…" : "");
+  renderGuest();
+
+  $("#live-title").textContent = live.title;
+  $("#live-count").textContent = `${nf.format(live.viewers)} spectateurs`;
   tickDuration();
 }
-function tickDuration() {
-  const n = S.data?.now;
-  if (n?.type !== "live") return;
-  const s = Math.max(0, Math.floor((Date.now() - Date.parse(n.live.startedAt)) / 1000));
-  const p = x => String(x).padStart(2, "0");
-  $("#now-duration").textContent = `${Math.floor(s / 3600)}:${p(Math.floor((s % 3600) / 60))}:${p(s % 60)}`;
+// avatar des invités en bas à droite de la photo Twitch (du plus au moins suivi), défile s'il y en a plusieurs
+function renderGuest() {
+  const img = $("#live-guest"), g = S.guests;
+  if (!g.length) { img.hidden = true; return; }
+  const cur = g[((S.guest % g.length) + g.length) % g.length];
+  setImg(img, cur.logo);
+  img.alt = cur.name;
 }
+function tickDuration() {
+  if (!S.liveStart) return;
+  const s = Math.max(0, Math.floor((Date.now() - S.liveStart) / 1000)), p = x => String(x).padStart(2, "0");
+  $("#live-duration").textContent = `${Math.floor(s / 3600)}:${p(Math.floor((s % 3600) / 60))}:${p(s % 60)}`;
+}
+
+// défilement des dernières vidéos
+function renderSlide() {
+  const list = S.slides;
+  $("#videos").hidden = !list.length;
+  if (!list.length) return;
+  S.slide = ((S.slide % list.length) + list.length) % list.length;
+  const c = list[S.slide], v = c.latest;
+  $("#slide-link").href = v.url;
+  setImg($("#slide-thumb"), v.thumbnail);
+  setImg($("#slide-logo"), c.logo);
+  $("#slide-channel").textContent = c.name;
+  $("#slide-title").textContent = v.title;
+  $("#slide-views").textContent = `${nf.format(v.views)} vues`;
+  $("#slide-pos").textContent = `${S.slide + 1} / ${list.length}`;
+}
+let timer;
+function startTimer() {
+  clearInterval(timer);
+  timer = setInterval(() => { S.slide++; S.guest++; renderSlide(); renderGuest(); }, 3000);
+}
+$("#slide-prev").addEventListener("click", () => { S.slide--; renderSlide(); startTimer(); });
+$("#slide-next").addEventListener("click", () => { S.slide++; renderSlide(); startTimer(); });
 
 /* ---------- chaînes ---------- */
 function renderChannels() {
+  const chans = orderedChannels(), sig = JSON.stringify(chans);
+  if (sig === S.sig.channels) return;
+  S.sig.channels = sig;
   const tpl = $("#tpl-channel");
-  $("#channels-list").replaceChildren(...(S.data?.channels || []).map(c => {
+  $("#channels-list").replaceChildren(...chans.map(c => {
     const li = tpl.content.firstElementChild.cloneNode(true);
     li.dataset.id = c.id;
     setImg($(".channel-logo", li), c.logo);
@@ -93,7 +172,7 @@ function renderChannels() {
     $(".channel-live", li).hidden = !c.live;
     const subs = $(".channel-subs", li);
     subs.hidden = c.platform === "twitch" || c.subscribers == null;
-    if (c.subscribers != null) subs.textContent = `${nf.format(c.subscribers)} abonnés`;
+    if (!subs.hidden) subs.textContent = `${nf.format(c.subscribers)} abonnés`;
     $(".channel-open", li).href = c.url;
 
     $(".channel-details", li).hidden = !S.open.has(c.id);
@@ -135,9 +214,10 @@ $("#channels-list").addEventListener("keydown", e => {
 
 /* ---------- notifications ---------- */
 function renderNotifs() {
-  const tpl = $("#tpl-notif");
+  const tpl = $("#tpl-notif"), unread = S.notifs.some(n => !n.read);
   $("#notif-empty").hidden = S.notifs.length > 0;
-  $("#notif-dot").hidden = !S.notifs.some(n => !n.read);
+  $("#notif-dot").hidden = !unread;
+  $("#btn-mark-read").hidden = !unread;
   $("#notif-list").replaceChildren(...S.notifs.map(n => {
     const li = tpl.content.firstElementChild.cloneNode(true);
     li.classList.toggle("notif--unread", !n.read);
@@ -150,15 +230,17 @@ function renderNotifs() {
     return li;
   }));
 }
+const markAllRead = () => chrome.runtime.sendMessage({ type: "markRead" });
 function closeNotifs() {
   if ($("#notif-panel").hidden) return;
   $("#notif-panel").hidden = true;
-  if (S.notifs.some(n => !n.read)) chrome.runtime.sendMessage({ type: "markRead" });
+  if (S.notifs.some(n => !n.read)) markAllRead();
 }
 $("#btn-notifs").addEventListener("click", () => {
   if ($("#notif-panel").hidden) { $("#notif-panel").hidden = false; renderNotifs(); }
   else closeNotifs();
 });
+$("#btn-mark-read").addEventListener("click", markAllRead);
 
 /* ---------- navigation ---------- */
 function showPage(name) {
@@ -180,12 +262,39 @@ function applySettings() {
 }
 $$("[data-setting]").forEach(el => el.addEventListener("change", () =>
   chrome.storage.sync.set({ [el.dataset.setting]: el.type === "checkbox" ? el.checked : el.value })));
-$("#btn-refresh").addEventListener("click", () => chrome.runtime.sendMessage({ type: "refresh" }));
+
+function renderPrefs() {
+  const chans = orderedChannels(true), p = prefs(), sig = JSON.stringify([chans.map(c => [c.id, c.name, c.logo]), p]);
+  if (sig === S.sig.prefs) return;
+  S.sig.prefs = sig;
+  const tpl = $("#tpl-pref");
+  $("#prefs-list").replaceChildren(...chans.map((c, i) => {
+    const li = tpl.content.firstElementChild.cloneNode(true);
+    setImg($(".pref-logo", li), c.logo);
+    $(".pref-name", li).textContent = c.name;
+    const up = $(".pref-up", li), down = $(".pref-down", li);
+    up.disabled = i === 0;
+    down.disabled = i === chans.length - 1;
+    up.addEventListener("click", () => movePref(c.id, -1));
+    down.addEventListener("click", () => movePref(c.id, 1));
+    const vis = $(".pref-visible", li), notif = $(".pref-notif", li);
+    vis.checked = !p.hidden[c.id];
+    notif.checked = !p.muted[c.id];
+    vis.addEventListener("change", () => setPref("hidden", c.id, !vis.checked));
+    notif.addEventListener("change", () => setPref("muted", c.id, !notif.checked));
+    return li;
+  }));
+}
+$("#btn-refresh").addEventListener("click", ping);
+const testBtn = $("#btn-test-notif");
+if (testBtn) testBtn.addEventListener("click", () => chrome.runtime.sendMessage({ type: "testNotif" }));
 $("#settings-version").textContent = chrome.runtime.getManifest().version;
 
 /* ---------- démarrage ---------- */
 chrome.storage.onChanged.addListener(load);
 showPage("home");
 load();
-chrome.runtime.sendMessage({ type: "refresh" });
+ping();
+startTimer();
 setInterval(tickDuration, 1000);
+setInterval(() => { if (!document.hidden) ping(); }, 15000); // le live apparaît en moins de ~15 s
