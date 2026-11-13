@@ -1,0 +1,107 @@
+/* Style simple : aplats uniquement, pas de dégradés, pas d'animations */
+:root {
+  --bg: #ffffff;
+  --text: #1a1a1a;
+  --muted: #666666;
+  --line: #d9d9d9;
+  --hover: #f2f2f2;
+  --accent: #6441a5;
+  --accent-text: #ffffff;
+  --unread: #fff3cd;
+  --live: #e53935;
+}
+html[data-theme="dark"] {
+  --bg: #18181b;
+  --text: #efeff1;
+  --muted: #adadb8;
+  --line: #3a3a3d;
+  --hover: #26262c;
+  --accent: #9147ff;
+  --accent-text: #ffffff;
+  --unread: #4a3f10;
+  --live: #e53935;
+}
+
+[hidden] { display: none !important; }
+* { box-sizing: border-box; }
+body { width: 400px; min-height: 560px; margin: 0; background: var(--bg); color: var(--text); font: 14px/1.4 system-ui, sans-serif; }
+h1, h2, h3, p { margin: 0; }
+h2 { font-size: 15px; margin-bottom: 8px; }
+h3 { font-size: 14px; }
+a { color: var(--accent); }
+img { display: block; }
+small { color: var(--muted); }
+button { font: inherit; color: inherit; cursor: pointer; }
+input[type="checkbox"] { margin-right: 6px; }
+select { font: inherit; margin-left: 6px; }
+label { display: block; margin-bottom: 8px; }
+
+/* En-tête */
+header { position: relative; display: flex; align-items: center; gap: 4px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+header h1 { flex: 1; font-size: 18px; }
+header button { background: none; border: 0; padding: 4px; }
+button svg { width: 24px; height: 24px; fill: currentColor; }
+#btn-notifs { position: relative; }
+#notif-dot { position: absolute; top: 2px; right: 2px; width: 9px; height: 9px; border-radius: 50%; background: var(--live); }
+#banner-error { padding: 8px 12px; background: var(--live); color: #fff; }
+
+/* Navigation */
+#nav { display: flex; border-bottom: 1px solid var(--line); }
+#nav button { flex: 1; padding: 10px 4px; background: none; border: 0; border-bottom: 3px solid transparent; font-size: 13px; }
+#nav button:hover { background: var(--hover); }
+#nav button.active { border-bottom-color: var(--accent); font-weight: 700; }
+
+main { padding: 12px; }
+
+/* Notifications */
+#notif-panel { position: absolute; top: 100%; right: 8px; z-index: 10; width: 384px; max-height: 420px; overflow: auto; padding: 10px; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; }
+#notif-list, #channels-list { list-style: none; margin: 0; padding: 0; }
+.notif { border-bottom: 1px solid var(--line); }
+.notif:last-child { border-bottom: 0; }
+.notif-link { display: block; padding: 8px; color: inherit; text-decoration: none; }
+.notif-title, .notif-text, .notif-time { display: block; }
+.notif-text { color: var(--muted); }
+.notif-time { font-size: 12px; color: var(--muted); }
+.notif--unread { background: var(--unread); }
+#notif-empty { color: var(--muted); }
+
+/* Accueil */
+#announce { margin-bottom: 16px; padding: 10px; border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 4px; }
+#announce-link { display: inline-block; margin-top: 6px; }
+#announce-date { display: block; margin-top: 6px; }
+#now-empty { color: var(--muted); }
+#now-link { display: block; padding-bottom: 10px; color: inherit; text-decoration: none; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+#now-link:hover { background: var(--hover); }
+#now-media { position: relative; }
+#now-thumb, .channel-video-thumb { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; background: var(--hover); }
+#now-live { position: absolute; top: 8px; left: 8px; padding: 2px 8px; background: var(--live); color: #fff; font-size: 12px; font-weight: 700; border-radius: 3px; }
+#now-logos { display: flex; gap: 4px; padding: 8px 10px 0; }
+.logo, .channel-logo { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; }
+#now-channel { padding: 4px 10px 0; font-weight: 700; }
+#now-handle { padding: 0 10px; color: var(--muted); }
+#now-title { padding: 6px 10px 0; }
+#now-link p:last-child { padding: 4px 10px 0; color: var(--muted); }
+
+/* Chaînes */
+.channel { margin-bottom: 8px; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.channel-bar { display: flex; align-items: center; gap: 10px; padding: 8px 10px; cursor: pointer; }
+.channel-bar:hover { background: var(--hover); }
+.channel-id { flex: 1; min-width: 0; }
+.channel-name { font-weight: 700; }
+.channel-live { margin-left: 6px; padding: 1px 6px; background: var(--live); color: #fff; font-size: 11px; font-weight: 700; border-radius: 3px; }
+.channel-subs { color: var(--muted); font-size: 12px; }
+.channel-open { display: block; color: inherit; }
+.channel-open svg { width: 20px; height: 20px; }
+.channel-details { padding: 10px; border-top: 1px solid var(--line); }
+.channel-banner { width: 100%; height: 100px; object-fit: cover; border-radius: 4px; }
+.channel-logo-big { width: 64px; height: 64px; margin-top: -32px; margin-left: 10px; border: 3px solid var(--bg); border-radius: 50%; object-fit: cover; position: relative; }
+.channel-desc { margin: 8px 0 12px; color: var(--muted); white-space: pre-wrap; max-height: 90px; overflow: auto; }
+.channel-video-label { margin-bottom: 6px; font-weight: 700; }
+.channel-video { display: block; color: inherit; text-decoration: none; }
+.channel-video-title, .channel-video-meta { display: block; margin-top: 4px; }
+.channel-video-meta { color: var(--muted); font-size: 12px; }
+
+/* Farmer & Réglages */
+#page-farmer p, #page-settings p { margin-bottom: 10px; }
+#page-settings h3 { margin: 14px 0 8px; }
+#btn-refresh { margin-left: 8px; padding: 4px 10px; background: var(--hover); border: 1px solid var(--line); border-radius: 4px; }
