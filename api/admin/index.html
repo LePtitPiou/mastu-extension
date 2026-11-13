@@ -121,7 +121,30 @@ textarea{min-height:150px;resize:vertical}
       </section>
 
       <section class="panel">
+        <h2>Live avec des invités</h2>
+        <p class="hint" id="collab-status" style="margin:0 0 .8rem">Vérification du live…</p>
+        <label for="guests">Liens des chaînes Twitch (un par ligne)</label>
+        <textarea id="guests" style="min-height:90px" placeholder="https://www.twitch.tv/pseudo1&#10;https://www.twitch.tv/pseudo2" disabled></textarea>
+        <p class="err" id="collab-error" role="alert"></p>
+        <p class="hint" id="guest-list" style="margin:0 0 .6rem"></p>
+        <div class="row" style="margin-top:0">
+          <button class="btn danger" id="collab-clear" type="button" disabled>Retirer les invités</button>
+          <button class="btn primary" id="collab-start" type="button" disabled>Lancer</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Notifications</h2>
+        <p class="hint" style="margin:0 0 .8rem">Efface l'historique des notifications dans l'extension et sur le site de tous les fans.</p>
+        <div class="row" style="margin-top:0">
+          <span class="count" id="reset-date"></span>
+          <button class="btn danger" id="reset-notifs" type="button">Réinitialiser pour tout le monde</button>
+        </div>
+      </section>
+
+      <section class="panel">
         <h2>Historique</h2>
+        <p class="err" id="persist-warning" hidden>Le stockage n'est pas persistant : les annonces seront perdues au prochain redémarrage. Ajoute UPSTASH_REDIS_REST_URL et UPSTASH_REDIS_REST_TOKEN sur Render.</p>
         <ul id="history"></ul>
         <p class="empty-list" id="history-empty" hidden>Aucune annonce publiée. Écris la première ci-dessus.</p>
       </section>
@@ -176,10 +199,9 @@ function toast(msg) {
 
 /* connexion */
 async function enter() {
-  const { announcements } = await api("/api/admin/announcements");
+  await loadState(); // lève une erreur si le token est incorrect
   sessionStorage.setItem(KEY, token);
   $("#login").hidden = true; $("#app").hidden = false;
-  renderHistory(announcements);
   checkStatus();
 }
 $("#login-form").addEventListener("submit", async e => {
@@ -196,7 +218,7 @@ async function checkStatus() {
   try {
     const d = await (await fetch("/api/data")).json();
     $("#st-dot").className = "dot on";
-    $("#st-text").textContent = d.now?.type === "live" ? "API en ligne · Mastu est en live" : "API en ligne · pas de live";
+    $("#st-text").textContent = d.channels?.some(c => c.live) ? "API en ligne · Mastu est en live" : "API en ligne · pas de live";
   } catch (_) { $("#st-dot").className = "dot off"; $("#st-text").textContent = "API : données indisponibles"; }
 }
 
@@ -236,7 +258,44 @@ function renderHistory(list) {
     return li;
   }));
 }
-async function refresh() { renderHistory((await api("/api/admin/announcements")).announcements); }
+const fmtN = n => new Intl.NumberFormat("fr-FR").format(n);
+async function loadState() {
+  const s = await api("/api/admin/state");
+  renderHistory(s.announcements);
+  const live = !!s.live;
+  $("#collab-status").textContent = live
+    ? `Mastu est en live : « ${s.live.title} ». ` + (s.collabActive ? "Invités affichés." : "Aucun invité défini.")
+    : "Mastu n'est pas en live : cette fonction n'est disponible que pendant un live.";
+  ["#guests", "#collab-start", "#collab-clear"].forEach(sel => { $(sel).disabled = !live; });
+  $("#guest-list").textContent = s.collabActive && s.guests.length
+    ? "Affichés (du plus au moins suivi) : " + s.guests.map(g => g.name + (g.followers != null ? ` (${fmtN(g.followers)})` : "")).join(", ")
+    : "";
+  $("#reset-date").textContent = s.notifResetAt ? "Dernière réinitialisation : " + fmt(s.notifResetAt) : "";
+  $("#persist-warning").hidden = s.persistent;
+}
+const refresh = loadState;
+
+/* invités du live */
+$("#collab-start").addEventListener("click", async () => {
+  $("#collab-error").textContent = "";
+  try {
+    await api("/api/admin/collab", { method: "POST", body: JSON.stringify({ links: $("#guests").value }) });
+    toast("Invités lancés."); await loadState();
+  } catch (err) { $("#collab-error").textContent = err.message; }
+});
+$("#collab-clear").addEventListener("click", async () => {
+  $("#collab-error").textContent = "";
+  try { await api("/api/admin/collab", { method: "DELETE" }); $("#guests").value = ""; toast("Invités retirés."); await loadState(); }
+  catch (err) { $("#collab-error").textContent = err.message; }
+});
+
+/* reset des notifications de tout le monde */
+$("#reset-notifs").addEventListener("click", async () => {
+  if (!confirm("Effacer les notifications de TOUS les fans ?")) return;
+  try { await api("/api/admin/reset-notifications", { method: "POST" }); toast("Notifications réinitialisées."); await loadState(); }
+  catch (err) { toast(err.message); }
+});
+setInterval(() => { if (!$("#app").hidden && !document.hidden) loadState().catch(() => {}); }, 20000);
 
 /* publication */
 $("#composer").addEventListener("submit", async e => {
