@@ -1,4 +1,4 @@
-// API Mastu : garde les tokens côté serveur et renvoie tout en un seul JSON (/api/data)
+// API Mastu : tokens côté serveur, données Twitch + YouTube, panneau admin, stockage persistant
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
@@ -6,24 +6,24 @@ const crypto = require('crypto');
 
 const {
   TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET, YOUTUBE_API_KEY,
-  CHROME_EXTENSION_IDS = '', CACHE_TTL_SECONDS = '60',
-  ADMIN_TOKEN,        // (nouveau, optionnel) protège POST /api/announcement
+  CHROME_EXTENSION_IDS = '', CACHE_TTL_SECONDS = '60', LIVE_TTL_SECONDS = '15',
+  ADMIN_TOKEN,
+  UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN, // stockage persistant (recommandé)
+  DATA_DIR,                                          // ou dossier d'un Disque Render
   PORT = 3000,
 } = process.env;
 
-const TTL = Number(CACHE_TTL_SECONDS) * 1000;
-const YT_TTL = Math.max(TTL, 5 * 60 * 1000); // protège le quota YouTube (10 000 unités/jour)
+const TTL = Number(CACHE_TTL_SECONDS) * 1000;        // rediffusions Twitch
+const LIVE_TTL = Number(LIVE_TTL_SECONDS) * 1000;    // état du live : très court pour être quasi instantané
+const YT_TTL = Math.max(TTL, 5 * 60 * 1000);         // protège le quota YouTube (10 000 unités/jour)
 const ALLOWED = CHROME_EXTENSION_IDS.split(',').map(s => s.trim()).filter(Boolean);
-// Sites web autorisés (GitHub Pages). Modifiable via la variable Render WEB_ORIGINS (séparés par des virgules)
 const WEB_ORIGINS = (process.env.WEB_ORIGINS || 'https://leptitpiou.github.io').split(',').map(s => s.trim()).filter(Boolean);
 
 const TWITCH_LOGIN = 'mastu';
-// Chaînes YouTube : par @handle ou par ID ({ id: 'UC...' })
-const YT_CHANNELS = [
-  { handle: '@Mastu' },
-  { id: 'UCLnv0iKl-QbLnkuF-aSZKTQ' }, // Mastu Gear 2
-  { id: 'UCW2JcUbafBUzIYP6X1-3YJQ' }, // Mastu+
-];
+// Chaînes YouTube : variable Render YOUTUBE_CHANNELS (séparées par des virgules : @handle ou ID UC...)
+const YT_CHANNELS = (process.env.YOUTUBE_CHANNELS || '@Mastu,UCLnv0iKl-QbLnkuF-aSZKTQ,UCW2JcUbafBUzIYP6X1-3YJQ')
+  .split(',').map(s => s.trim()).filter(Boolean)
+  .map(s => /^UC[\w-]{20,}$/.test(s) ? { id: s } : { handle: s.startsWith('@') ? s : '@' + s });
 
 // ---------- cache ----------
 const cache = new Map(), inflight = new Map();
@@ -39,10 +39,49 @@ async function cached(key, ttl, fn) {
   return p;
 }
 
+// ---------- stockage persistant : annonces, reset des notifications, invités du live ----------
+const KEY = 'mastu:state';
+const FILE = path.join(DATA_DIR || __dirname, 'state.json');
+const PERSISTENT = !!(UPSTASH_REDIS_REST_URL || DATA_DIR);
+const store = { announcements: [], notifResetAt: 0, collab: null };
+let loaded = false;
+
+async function upstash(cmd) {
+  const r = await fetch(UPSTASH_REDIS_REST_URL, {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + UPSTASH_REDIS_REST_TOKEN, 'Content-Type': 'application/json' },
+    body: JSON.stringify(cmd),
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok || j.error) throw new Error('Upstash : ' + (j.error || r.status));
+  return j.result;
+}
+async function loadStore() {
+  let raw = null;
+  if (UPSTASH_REDIS_REST_URL) raw = await upstash(['GET', KEY]);
+  else { try { raw = fs.readFileSync(FILE, 'utf8'); } catch (_) {} }
+  if (raw) Object.assign(store, JSON.parse(raw));
+  loaded = true;
+}
+async function saveStore() {
+  const raw = JSON.stringify(store);
+  if (UPSTASH_REDIS_REST_URL) await upstash(['SET', KEY, raw]);
+  else { try { fs.writeFileSync(FILE, raw); } catch (e) { console.error(e.message); } }
+}
+const ensureLoaded = async () => { if (!loaded) await loadStore(); };
+// modifie le stockage ; si l'enregistrement échoue, on revient en arrière
+async function mutate(fn) {
+  await ensureLoaded();
+  const snap = JSON.stringify(store);
+  try { const out = fn(); await saveStore(); return out; }
+  catch (e) { Object.assign(store, JSON.parse(snap)); throw e; }
+}
+loadStore().catch(e => console.error('Stockage :', e.message));
+
 // ---------- Twitch ----------
-let tw = { token: null, exp: 0 };
+let twTok = { token: null, exp: 0 };
 async function twitchToken() {
-  if (tw.token && Date.now() < tw.exp) return tw.token;
+  if (twTok.token && Date.now() < twTok.exp) return twTok.token;
   const r = await fetch('https://id.twitch.tv/oauth2/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -50,41 +89,85 @@ async function twitchToken() {
   });
   const j = await r.json();
   if (!r.ok) throw new Error('Twitch token: ' + JSON.stringify(j));
-  tw = { token: j.access_token, exp: Date.now() + (j.expires_in - 300) * 1000 };
-  return tw.token;
+  twTok = { token: j.access_token, exp: Date.now() + (j.expires_in - 300) * 1000 };
+  return twTok.token;
 }
-async function helix(p, token) {
+async function helix(p) {
   const r = await fetch('https://api.twitch.tv/helix' + p, {
-    headers: { 'Client-Id': TWITCH_CLIENT_ID, Authorization: 'Bearer ' + (token || await twitchToken()) },
+    headers: { 'Client-Id': TWITCH_CLIENT_ID, Authorization: 'Bearer ' + await twitchToken() },
   });
   if (!r.ok) throw new Error(`Helix ${p} -> ${r.status}`);
   return r.json();
 }
-async function getTwitch() {
+const twitchUser = () => cached('tw:user', 10 * 60 * 1000, async () => {
   const u = (await helix('/users?login=' + TWITCH_LOGIN)).data[0];
   if (!u) throw new Error('Chaîne Twitch introuvable : ' + TWITCH_LOGIN);
-  // Si l'un de ces appels échoue, la chaîne reste affichée (hors ligne / sans rediffusion)
+  return u;
+});
+const usersByLogin = async logins => logins.length
+  ? (await helix('/users?' + logins.map(l => 'login=' + encodeURIComponent(l)).join('&'))).data : [];
+
+// Nombre de followers d'un invité : l'API officielle ne le donne pas sans autorisation de la chaîne,
+// on passe donc par des services publics (decapi.me, puis ivr.fi). Sans réponse : null.
+async function followersOf(login) {
+  const key = 'fol:' + login;
+  const v = await cached(key, 10 * 60 * 1000, async () => {
+    try {
+      const r = await fetch('https://decapi.me/twitch/followcount/' + encodeURIComponent(login), { signal: AbortSignal.timeout(3000) });
+      const t = (await r.text()).trim();
+      if (r.ok && /^[\d.,\s]+$/.test(t)) return Number(t.replace(/\D/g, ''));
+    } catch (_) {}
+    try {
+      const r = await fetch('https://api.ivr.fi/v2/twitch/user?login=' + encodeURIComponent(login), { signal: AbortSignal.timeout(3000) });
+      const f = (await r.json())?.[0]?.followers;
+      if (r.ok && Number.isFinite(f)) return f;
+    } catch (_) {}
+    return null;
+  }).catch(() => null);
+  if (v == null) cache.delete(key); // on réessaie au prochain passage
+  return v;
+}
+
+// Invités du live : ceux saisis dans le panneau, sinon ceux du chat partagé. Triés par followers décroissants.
+async function guestsFor(streamId, ownerId) {
+  let users = [];
+  const manual = store.collab && store.collab.streamId === streamId ? store.collab.logins : [];
+  if (manual.length) {
+    users = (await usersByLogin(manual)).sort((a, b) => manual.indexOf(a.login) - manual.indexOf(b.login));
+  } else {
+    try {
+      const sc = await helix('/shared_chat/session?broadcaster_id=' + ownerId);
+      const ids = (sc.data[0]?.participants || []).map(p => p.broadcaster_id).filter(id => id !== ownerId);
+      if (ids.length) users = (await helix('/users?' + ids.map(i => 'id=' + i).join('&'))).data;
+    } catch (_) { /* pas de chat partagé */ }
+  }
+  const list = await Promise.all(users.map(async u => ({
+    name: u.display_name, handle: u.login, logo: u.profile_image_url,
+    url: 'https://www.twitch.tv/' + u.login, followers: await followersOf(u.login),
+  })));
+  return list.sort((a, b) => (b.followers ?? -1) - (a.followers ?? -1));
+}
+
+async function getTwitch() {
+  const u = await twitchUser();
   const none = { data: [] };
+  let streamsOk = true;
   const [streams, vods] = await Promise.all([
-    helix('/streams?user_id=' + u.id).catch(e => { console.error(e.message); return none; }),
-    helix(`/videos?user_id=${u.id}&type=archive&first=1`).catch(e => { console.error(e.message); return none; }),
+    helix('/streams?user_id=' + u.id).catch(e => { streamsOk = false; console.error(e.message); return none; }),
+    cached('tw:vod', TTL, () => helix(`/videos?user_id=${u.id}&type=archive&first=1`)).catch(e => { console.error(e.message); return none; }),
   ]);
   const s = streams.data[0];
+  // les invités ne valent que pour le live en cours
+  if (streamsOk && store.collab && (!s || store.collab.streamId !== s.id)) {
+    mutate(() => { store.collab = null; }).catch(e => console.error(e.message));
+  }
   let live = null;
   if (s) {
-    let participants = [];
-    try { // stream partagé (Shared Chat)
-      const sc = await helix('/shared_chat/session?broadcaster_id=' + u.id);
-      const ids = (sc.data[0]?.participants || []).map(p => p.broadcaster_id).filter(id => id !== u.id);
-      if (ids.length) {
-        participants = (await helix('/users?' + ids.map(i => 'id=' + i).join('&'))).data
-          .map(x => ({ name: x.display_name, handle: x.login, logo: x.profile_image_url, url: 'https://twitch.tv/' + x.login }));
-      }
-    } catch (_) { /* pas de session partagée */ }
     live = {
       id: s.id, title: s.title, game: s.game_name, viewers: s.viewer_count, startedAt: s.started_at,
       thumbnail: (s.thumbnail_url || '').replace('{width}', '640').replace('{height}', '360'),
-      url: 'https://www.twitch.tv/' + u.login, participants,
+      url: 'https://www.twitch.tv/' + u.login,
+      guests: await guestsFor(s.id, u.id).catch(e => { console.error(e.message); return []; }),
     };
   }
   const v = vods.data[0];
@@ -98,6 +181,7 @@ async function getTwitch() {
     } : null,
   };
 }
+const getTwitchCached = () => cached('tw', LIVE_TTL, getTwitch);
 
 // ---------- YouTube ----------
 async function yt(p) {
@@ -138,26 +222,12 @@ async function getYoutube(c) {
 
 // ---------- assemblage ----------
 async function buildData() {
-  const res = await Promise.allSettled([getTwitch(), ...YT_CHANNELS.map(getYoutube)]);
+  const res = await Promise.allSettled([getTwitchCached(), ...YT_CHANNELS.map(getYoutube)]);
   res.filter(r => r.status === 'rejected').forEach(r => console.error(r.reason.message));
   const channels = res.filter(r => r.status === 'fulfilled').map(r => r.value);
   if (!channels.length) throw new Error('Aucune donnée');
-  const twitch = channels.find(c => c.platform === 'twitch');
-  let now = null;
-  if (twitch?.live) {
-    now = { type: 'live', channel: twitch, live: twitch.live };
-  } else {
-    const best = channels.filter(c => c.latest).sort((a, b) => Date.parse(b.latest.publishedAt) - Date.parse(a.latest.publishedAt))[0];
-    if (best) now = { type: 'video', channel: best, video: best.latest };
-  }
-  return { updatedAt: new Date().toISOString(), channels, now };
+  return { updatedAt: new Date().toISOString(), channels };
 }
-
-// ---------- annonces (historique, la plus récente = annonce actuelle) ----------
-const FILE = path.join(__dirname, 'announcements.json');
-let announcements = [];
-try { announcements = JSON.parse(fs.readFileSync(FILE, 'utf8')); } catch (_) {}
-const saveAnnouncements = () => { try { fs.writeFileSync(FILE, JSON.stringify(announcements)); } catch (_) {} };
 
 // ---------- authentification admin ----------
 const fails = new Map();
@@ -182,7 +252,7 @@ app.set('trust proxy', 1);
 app.use((req, res, next) => {
   const o = req.headers.origin;
   if (o && (ALLOWED.some(id => o === 'chrome-extension://' + id) || WEB_ORIGINS.includes(o))) {
-    res.set({ 'Access-Control-Allow-Origin': o, 'Access-Control-Allow-Headers': 'Content-Type, Authorization', 'Access-Control-Allow-Methods': 'GET,POST,OPTIONS', Vary: 'Origin' });
+    res.set({ 'Access-Control-Allow-Origin': o, 'Access-Control-Allow-Headers': 'Content-Type, Authorization', 'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS', Vary: 'Origin' });
   }
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   next();
@@ -192,8 +262,11 @@ app.get('/health', (_q, r) => r.send('ok'));
 
 app.get('/api/data', async (_q, res) => {
   try {
-    const base = await cached('all', TTL, buildData);
-    res.set('Cache-Control', 'no-store').json({ ...base, announcement: announcements[0] || null });
+    await ensureLoaded().catch(() => {});
+    const base = await buildData();
+    res.set('Cache-Control', 'no-store').json({
+      ...base, announcement: store.announcements[0] || null, notifResetAt: store.notifResetAt,
+    });
   } catch (e) { console.error(e.message); res.status(502).json({ error: 'upstream' }); }
 });
 
@@ -201,26 +274,70 @@ app.get('/api/data', async (_q, res) => {
 app.use('/admin', express.static(path.join(__dirname, 'admin')));
 app.get('/', (_q, r) => r.redirect('/admin'));
 
-app.get('/api/admin/announcements', auth, (_q, res) => res.json({ announcements }));
+const storageError = (res, e) => { console.error(e.message); res.status(503).json({ error: 'Stockage indisponible, réessaie.' }); };
 
-app.post('/api/announcement', auth, express.json({ limit: '20kb' }), (req, res) => {
+app.get('/api/admin/state', auth, async (_q, res) => {
+  await ensureLoaded().catch(() => {});
+  const tw = await getTwitchCached().catch(() => null);
+  res.json({
+    announcements: store.announcements, notifResetAt: store.notifResetAt, persistent: PERSISTENT,
+    live: tw?.live ? { id: tw.live.id, title: tw.live.title, viewers: tw.live.viewers } : null,
+    guests: tw?.live?.guests || [],
+    collabActive: !!(store.collab && tw?.live && store.collab.streamId === tw.live.id),
+  });
+});
+
+app.post('/api/announcement', auth, express.json({ limit: '20kb' }), async (req, res) => {
   const text = String(req.body?.text || '').trim();
   const link = String(req.body?.link || '').trim();
   if (!text) return res.status(400).json({ error: "Le texte de l'annonce est vide." });
   if (text.length > 500) return res.status(400).json({ error: 'Texte trop long (500 caractères maximum).' });
   if (link && !/^https?:\/\//i.test(link)) return res.status(400).json({ error: 'Le lien doit commencer par http:// ou https://.' });
   const a = { id: String(Date.now()), text, link, date: new Date().toISOString() };
-  announcements = [a, ...announcements].slice(0, 50);
-  saveAnnouncements();
-  res.json(a);
+  try { await mutate(() => { store.announcements = [a, ...store.announcements].slice(0, 50); }); res.json(a); }
+  catch (e) { storageError(res, e); }
 });
 
-app.delete('/api/announcement/:id', auth, (req, res) => {
-  const before = announcements.length;
-  announcements = announcements.filter(a => a.id !== req.params.id);
-  if (announcements.length === before) return res.status(404).json({ error: 'Annonce introuvable.' });
-  saveAnnouncements();
-  res.json({ ok: true });
+app.delete('/api/announcement/:id', auth, async (req, res) => {
+  try {
+    await ensureLoaded();
+    if (!store.announcements.some(a => a.id === req.params.id)) return res.status(404).json({ error: 'Annonce introuvable.' });
+    await mutate(() => { store.announcements = store.announcements.filter(a => a.id !== req.params.id); });
+    res.json({ ok: true });
+  } catch (e) { storageError(res, e); }
+});
+
+// Efface les notifications de tous les fans (chaque extension / site l'applique à sa prochaine actualisation)
+app.post('/api/admin/reset-notifications', auth, async (_q, res) => {
+  try { await mutate(() => { store.notifResetAt = Date.now(); }); res.json({ notifResetAt: store.notifResetAt }); }
+  catch (e) { storageError(res, e); }
+});
+
+// Invités du live (uniquement pendant un live)
+const parseLogin = s => {
+  s = String(s).trim();
+  const m = s.match(/twitch\.tv\/([A-Za-z0-9_]{1,25})/i) || s.match(/^@?([A-Za-z0-9_]{3,25})$/);
+  return m ? m[1].toLowerCase() : null;
+};
+app.post('/api/admin/collab', auth, express.json({ limit: '20kb' }), async (req, res) => {
+  try {
+    const tw = await getTwitchCached().catch(() => null);
+    if (!tw?.live) return res.status(409).json({ error: "Mastu n'est pas en live : les invités ne se définissent que pendant un live." });
+    const raw = Array.isArray(req.body?.links) ? req.body.links : String(req.body?.links || '').split(/[\s,]+/);
+    const logins = [...new Set(raw.map(parseLogin).filter(Boolean))].filter(l => l !== TWITCH_LOGIN).slice(0, 8);
+    if (!logins.length) return res.status(400).json({ error: 'Aucun lien de chaîne Twitch valide.' });
+    const found = (await usersByLogin(logins)).map(x => x.login);
+    const missing = logins.filter(l => !found.includes(l));
+    if (missing.length) return res.status(400).json({ error: 'Chaîne(s) Twitch introuvable(s) : ' + missing.join(', ') });
+    await mutate(() => { store.collab = { streamId: tw.live.id, logins }; });
+    cache.delete('tw');
+    const fresh = await getTwitchCached();
+    res.json({ guests: fresh.live?.guests || [] });
+  } catch (e) { storageError(res, e); }
+});
+app.delete('/api/admin/collab', auth, async (_q, res) => {
+  try { await mutate(() => { store.collab = null; }); cache.delete('tw'); res.json({ ok: true }); }
+  catch (e) { storageError(res, e); }
 });
 
 app.listen(PORT, () => console.log('Mastu API sur le port ' + PORT));
