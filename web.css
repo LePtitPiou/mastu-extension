@@ -1,4 +1,0 @@
-/* Adaptation téléphone / navigateur (chargé après popup.css) */
-html { background: var(--bg); }
-body { width: auto; max-width: 480px; min-height: 100vh; margin: 0 auto; padding-bottom: env(safe-area-inset-bottom); }
-#notif-panel { left: 8px; right: 8px; width: auto; }
