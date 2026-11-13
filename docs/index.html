@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mastu</title>
+  <link rel="stylesheet" href="popup.css">
+  <link rel="stylesheet" href="web.css">
+</head>
+<body>
+
+<header id="header">
+  <h1>Mastu</h1>
+
+  <!-- Remplace les <svg> par tes icônes animées -->
+  <button id="btn-notifs" type="button" aria-label="Notifications">
+    <svg viewBox="0 0 24 24"><path d="M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2zm6-6V11a6 6 0 0 0-5-5.9V4a1 1 0 0 0-2 0v1.1A6 6 0 0 0 6 11v5l-2 2v1h16v-1z"/></svg>
+    <span id="notif-dot" hidden></span>
+  </button>
+  <button id="btn-settings" type="button" aria-label="Réglages">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M11 1h2v4h-2zM11 19h2v4h-2zM1 11h4v2H1zM19 11h4v2h-4z"/></svg>
+  </button>
+
+  <section id="notif-panel" hidden>
+    <h2>Notifications</h2>
+    <ul id="notif-list"></ul>
+    <p id="notif-empty" hidden>Aucune notification.</p>
+  </section>
+</header>
+
+<p id="banner-error" hidden>Impossible de joindre le serveur. Les dernières données connues sont affichées.</p>
+
+<nav id="nav">
+  <button type="button" data-page="home">Accueil</button>
+  <button type="button" data-page="channels">Chaînes</button>
+</nav>
+
+<main>
+  <!-- ACCUEIL -->
+  <section class="page" id="page-home">
+    <section id="announce">
+      <h2>Annonce</h2>
+      <p id="announce-text"></p>
+      <a id="announce-link" target="_blank" rel="noopener" hidden>En savoir plus</a>
+      <small id="announce-date"></small>
+    </section>
+
+    <section id="now">
+      <h2>En ce moment</h2>
+      <p id="now-empty" hidden>Rien à afficher pour le moment.</p>
+      <a id="now-link" href="#" target="_blank" rel="noopener" hidden>
+        <div id="now-media">
+          <img id="now-thumb" alt="">
+          <span id="now-live" hidden>LIVE</span>
+        </div>
+        <div id="now-logos"></div>
+        <p id="now-channel"></p>
+        <p id="now-handle"></p>
+        <h3 id="now-title"></h3>
+        <p><span id="now-count"></span> <span id="now-duration" hidden></span></p>
+      </a>
+    </section>
+  </section>
+
+  <!-- CHAÎNES -->
+  <section class="page" id="page-channels" hidden>
+    <h2>Chaînes</h2>
+    <ul id="channels-list"></ul>
+  </section>
+
+  <!-- RÉGLAGES -->
+  <section class="page" id="page-settings" hidden>
+    <h2>Réglages</h2>
+    <label>Thème
+      <select data-setting="theme">
+        <option value="auto">Automatique</option>
+        <option value="light">Clair</option>
+        <option value="dark">Sombre</option>
+      </select>
+    </label>
+    <h3>Notifications (dans la cloche)</h3>
+    <label><input type="checkbox" data-setting="notifLive"> Lives</label>
+    <label><input type="checkbox" data-setting="notifVideo"> Vidéos</label>
+    <label><input type="checkbox" data-setting="notifNews"> Annonces</label>
+    <p>Dernière mise à jour : <span id="settings-updated">—</span> <button id="btn-refresh" type="button">Actualiser</button></p>
+    <small>Version <span id="settings-version"></span></small>
+  </section>
+</main>
+
+<!-- Modèles (le script les clone) -->
+<template id="tpl-logo"><img class="logo" alt=""></template>
+
+<template id="tpl-notif">
+  <li class="notif">
+    <a class="notif-link" target="_blank" rel="noopener">
+      <strong class="notif-title"></strong>
+      <span class="notif-text"></span>
+      <time class="notif-time"></time>
+    </a>
+  </li>
+</template>
+
+<template id="tpl-channel">
+  <li class="channel">
+    <div class="channel-bar" role="button" tabindex="0">
+      <img class="channel-logo" alt="">
+      <div class="channel-id">
+        <span class="channel-name"></span>
+        <span class="channel-live" hidden>LIVE</span>
+      </div>
+      <span class="channel-subs"></span>
+      <a class="channel-open" target="_blank" rel="noopener" aria-label="Ouvrir la chaîne">
+        <svg viewBox="0 0 24 24"><path d="M14 3h7v7h-2V6.4l-9.3 9.3-1.4-1.4L17.6 5H14zM5 5h6v2H7v10h10v-4h2v6H5z"/></svg>
+      </a>
+    </div>
+    <div class="channel-details" hidden>
+      <img class="channel-banner" alt="">
+      <img class="channel-logo-big" alt="">
+      <p class="channel-desc"></p>
+      <p class="channel-video-label"></p>
+      <a class="channel-video" target="_blank" rel="noopener">
+        <img class="channel-video-thumb" alt="">
+        <span class="channel-video-title"></span>
+        <span class="channel-video-meta"></span>
+      </a>
+    </div>
+  </li>
+</template>
+
+<script src="config.js"></script>
+<script src="web-shim.js"></script>
+<script src="popup.js"></script>
+</body>
+</html>
