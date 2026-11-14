@@ -16,6 +16,4 @@ module.exports = [
   { platform: "youtube", handle: "@Mastu" },
   { platform: "youtube", id: "UCLnv0iKl-QbLnkuF-aSZKTQ" }, // Mastu Gear 2
   { platform: "youtube", id: "UCW2JcUbafBUzIYP6X1-3YJQ" }, // Mastu+
-  { platform: "instagram", username: "mastuu_" },           // à vérifier
-  { platform: "tiktok", username: "mastuu_" },              // à vérifier
 ];
