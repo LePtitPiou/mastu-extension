@@ -3,6 +3,7 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const sanitizeHtml = require('sanitize-html');
 
 const {
   TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET, YOUTUBE_API_KEY,
@@ -43,7 +44,7 @@ async function cached(key, ttl, fn) {
 const KEY = 'mastu:state';
 const FILE = path.join(DATA_DIR || __dirname, 'state.json');
 const PERSISTENT = !!(UPSTASH_REDIS_REST_URL || DATA_DIR);
-const store = { announcements: [], notifResetAt: 0, collab: null };
+const store = { announcements: [], notifResetAt: 0, collab: null, broadcasts: [] };
 let loaded = false;
 
 async function upstash(cmd) {
@@ -229,6 +230,26 @@ async function buildData() {
   return { updatedAt: new Date().toISOString(), channels };
 }
 
+// ---------- annonces mises en forme (HTML nettoyé) ----------
+const COLOR = [/^#[0-9a-f]{3,8}$/i, /^rgba?\([\d\s,.%]+\)$/i];
+const SIZE = [/^\d{1,3}(\.\d+)?(px|%)$/];
+const RICH = {
+  allowedTags: ['p', 'br', 'div', 'span', 'b', 'strong', 'i', 'em', 'u', 's', 'strike', 'del', 'sub', 'sup', 'h1', 'h2', 'h3', 'ul', 'ol', 'li',
+    'blockquote', 'hr', 'table', 'thead', 'tbody', 'tfoot', 'tr', 'td', 'th', 'colgroup', 'col', 'a'],
+  allowedAttributes: { '*': ['style'], a: ['href'], td: ['colspan', 'rowspan'], th: ['colspan', 'rowspan'], col: ['span'] },
+  allowedSchemes: ['http', 'https', 'mailto'],
+  allowedStyles: { '*': {
+    'font-size': [/^([89]|[1-5]\d|6[0-4])(\.\d+)?px$/], 'font-weight': [/^(normal|bold|[1-9]00)$/], 'font-style': [/^(normal|italic)$/],
+    'text-decoration': [/^(none|underline|line-through|underline line-through|line-through underline)$/],
+    'text-align': [/^(left|right|center|justify)$/], 'color': COLOR, 'background-color': COLOR,
+    'width': SIZE, 'height': SIZE, 'vertical-align': [/^(top|middle|bottom)$/] } },
+};
+const cleanHtml = html => sanitizeHtml(String(html || ''), RICH);
+// texte brut (notifications, historique) : les blocs deviennent des espaces
+const toPlain = html => sanitizeHtml(String(html || '').replace(/<\/(p|div|li|tr|td|th|h[1-6]|blockquote)>|<br\s*\/?>/gi, ' '), { allowedTags: [], allowedAttributes: {} })
+  .replace(/&nbsp;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&')
+  .replace(/\s+/g, ' ').trim();
+
 // ---------- authentification admin ----------
 const fails = new Map();
 function auth(req, res, next) {
@@ -266,6 +287,7 @@ app.get('/api/data', async (_q, res) => {
     const base = await buildData();
     res.set('Cache-Control', 'no-store').json({
       ...base, announcement: store.announcements[0] || null, notifResetAt: store.notifResetAt,
+      broadcasts: store.broadcasts.filter(b => Date.now() - Date.parse(b.date) < 7 * 864e5).slice(0, 10),
     });
   } catch (e) { console.error(e.message); res.status(502).json({ error: 'upstream' }); }
 });
@@ -280,21 +302,37 @@ app.get('/api/admin/state', auth, async (_q, res) => {
   await ensureLoaded().catch(() => {});
   const tw = await getTwitchCached().catch(() => null);
   res.json({
-    announcements: store.announcements, notifResetAt: store.notifResetAt, persistent: PERSISTENT,
+    announcements: store.announcements, notifResetAt: store.notifResetAt, persistent: PERSISTENT, broadcasts: store.broadcasts.slice(0, 5),
     live: tw?.live ? { id: tw.live.id, title: tw.live.title, viewers: tw.live.viewers } : null,
     guests: tw?.live?.guests || [],
     collabActive: !!(store.collab && tw?.live && store.collab.streamId === tw.live.id),
   });
 });
 
-app.post('/api/announcement', auth, express.json({ limit: '20kb' }), async (req, res) => {
+app.post('/api/announcement', auth, express.json({ limit: '300kb' }), async (req, res) => {
+  const html = req.body?.html != null ? cleanHtml(req.body.html) : '';
+  const text = html ? toPlain(html) : String(req.body?.text || '').trim();
+  const link = String(req.body?.link || '').trim();
+  if (!text && !/<(table|hr)/i.test(html)) return res.status(400).json({ error: "L'annonce est vide." });
+  if (html.length > 40000) return res.status(400).json({ error: 'Annonce trop longue.' });
+  if (text.length > 3000) return res.status(400).json({ error: 'Texte trop long (3000 caractères maximum).' });
+  if (link && !/^https?:\/\//i.test(link)) return res.status(400).json({ error: 'Le lien doit commencer par http:// ou https://.' });
+  const a = { id: String(Date.now()), text: text.slice(0, 500), html, link, date: new Date().toISOString() };
+  try { await mutate(() => { store.announcements = [a, ...store.announcements].slice(0, 50); }); res.json(a); }
+  catch (e) { storageError(res, e); }
+});
+
+// Notification envoyée à tout le monde (cloche + notification Chrome)
+app.post('/api/admin/broadcast', auth, express.json({ limit: '20kb' }), async (req, res) => {
+  const title = String(req.body?.title || '').trim();
   const text = String(req.body?.text || '').trim();
   const link = String(req.body?.link || '').trim();
-  if (!text) return res.status(400).json({ error: "Le texte de l'annonce est vide." });
-  if (text.length > 500) return res.status(400).json({ error: 'Texte trop long (500 caractères maximum).' });
+  if (!title) return res.status(400).json({ error: 'Le titre est vide.' });
+  if (title.length > 80) return res.status(400).json({ error: 'Titre trop long (80 caractères maximum).' });
+  if (text.length > 300) return res.status(400).json({ error: 'Message trop long (300 caractères maximum).' });
   if (link && !/^https?:\/\//i.test(link)) return res.status(400).json({ error: 'Le lien doit commencer par http:// ou https://.' });
-  const a = { id: String(Date.now()), text, link, date: new Date().toISOString() };
-  try { await mutate(() => { store.announcements = [a, ...store.announcements].slice(0, 50); }); res.json(a); }
+  const b = { id: String(Date.now()), title, text, link, date: new Date().toISOString() };
+  try { await mutate(() => { store.broadcasts = [b, ...store.broadcasts].slice(0, 20); }); res.json(b); }
   catch (e) { storageError(res, e); }
 });
 
