@@ -5,7 +5,7 @@ const rtf = new Intl.RelativeTimeFormat("fr", { numeric: "auto" });
 const S = {
   data: null, notifs: [], settings: { ...DEFAULTS }, open: new Set(),
   claimed: 0, updatedAt: 0, error: false,
-  slides: [], slide: 0, guests: [], guest: 0, liveStart: null, sig: {},
+  slides: [], slide: 0, dir: 1, hover: false, guests: [], guest: 0, liveStart: null, sig: {},
 };
 
 /* ---------- utilitaires ---------- */
@@ -79,7 +79,31 @@ function renderHome() {
   renderLive(twitch);
   S.slides = vis.filter(c => c.platform === "youtube" && c.latest);
   renderSlide();
+  if (!timer && !S.hover) startTimer();
   $("#home-empty").hidden = !!twitch?.live || S.slides.length > 0;
+}
+
+// Retransmission : lecteur Twitch officiel, muet, sans commandes (controls:false), clics bloqués par la feuille de style
+function mountPlayer(channel) {
+  const box = $("#live-player");
+  if (!box || box.dataset.channel === channel) return;
+  box.dataset.channel = channel;
+  box.replaceChildren();
+  if (window.Twitch && Twitch.Player) {
+    new Twitch.Player("live-player", { channel, parent: [location.hostname], muted: true, autoplay: true, controls: false, width: "100%", height: "100%" });
+  } else { // repli si le script Twitch n'a pas pu se charger
+    const f = document.createElement("iframe");
+    f.src = `https://player.twitch.tv/?channel=${encodeURIComponent(channel)}&parent=${location.hostname}&muted=true&autoplay=true&controls=false`;
+    f.title = "Retransmission du live (sans son)";
+    f.allow = "autoplay";
+    box.append(f);
+  }
+}
+function unmountPlayer() {
+  const box = $("#live-player");
+  if (!box) return;
+  box.replaceChildren();
+  delete box.dataset.channel;
 }
 
 function renderLive(twitch) {
@@ -87,24 +111,19 @@ function renderLive(twitch) {
   $("#live").hidden = !live;
   if (!live) {
     S.guests = []; S.liveStart = null;
-    const pl = $("#live-player"); // site : on arrête le lecteur quand le live se termine
-    if (pl && pl.getAttribute("src")) { pl.removeAttribute("src"); delete pl.dataset.channel; }
+    unmountPlayer(); // site : on coupe la retransmission quand le live se termine
     return;
   }
 
   $("#live-link").href = live.url;
   S.liveStart = Date.parse(live.startedAt);
 
-  // site web : lecteur Twitch sans son ; extension : aperçu actualisé
-  const wrap = $("#live-player-wrap");
-  if (wrap) {
-    const pl = $("#live-player");
-    wrap.hidden = false;
+  // site web : retransmission du live sans commandes et sans son ; extension : aperçu actualisé
+  if ($("#live-player-wrap")) {
+    $("#live-player-wrap").hidden = false;
     $("#live-media").hidden = true;
-    if (pl.dataset.channel !== twitch.handle) {
-      pl.dataset.channel = twitch.handle;
-      pl.src = `https://player.twitch.tv/?channel=${encodeURIComponent(twitch.handle)}&parent=${location.hostname}&muted=true&autoplay=true`;
-    }
+    $("#live-player-open").href = live.url;
+    mountPlayer(twitch.handle);
   } else {
     setImg($("#live-thumb"), live.thumbnail ? live.thumbnail + "?t=" + Math.floor(Date.now() / 30000) : "");
   }
@@ -122,12 +141,18 @@ function renderLive(twitch) {
   tickDuration();
 }
 // avatar des invités en bas à droite de la photo Twitch (du plus au moins suivi), défile s'il y en a plusieurs
-function renderGuest() {
+const canAnimate = el => typeof el.animate === "function" && !matchMedia("(prefers-reduced-motion: reduce)").matches;
+function renderGuest(animate) {
   const img = $("#live-guest"), g = S.guests;
   if (!g.length) { img.hidden = true; return; }
   const cur = g[((S.guest % g.length) + g.length) % g.length];
+  const changed = img.dataset.login !== cur.handle;
+  img.dataset.login = cur.handle;
   setImg(img, cur.logo);
   img.alt = cur.name;
+  if (animate && changed && canAnimate(img)) {
+    img.animate([{ opacity: 0, transform: "scale(.5)" }, { opacity: 1, transform: "scale(1)" }], { duration: 350, easing: "cubic-bezier(.2,.8,.2,1)" });
+  }
 }
 function tickDuration() {
   if (!S.liveStart) return;
@@ -135,8 +160,9 @@ function tickDuration() {
   $("#live-duration").textContent = `${Math.floor(s / 3600)}:${p(Math.floor((s % 3600) / 60))}:${p(s % 60)}`;
 }
 
-// défilement des dernières vidéos
-function renderSlide() {
+// défilement des dernières vidéos : glisse depuis le côté, barre de progression, zoom lent, pause au survol
+const SLIDE_MS = 3000;
+function renderSlide(animate) {
   const list = S.slides;
   $("#videos").hidden = !list.length;
   if (!list.length) return;
@@ -149,14 +175,28 @@ function renderSlide() {
   $("#slide-title").textContent = v.title;
   $("#slide-views").textContent = `${nf.format(v.views)} vues`;
   $("#slide-pos").textContent = `${S.slide + 1} / ${list.length}`;
+  $("#slide-progress").hidden = list.length < 2;
+  if (animate && canAnimate($("#slide-link"))) {
+    $("#slide-link").animate([{ opacity: 0, transform: `translateX(${S.dir * 28}px)` }, { opacity: 1, transform: "translateX(0)" }], { duration: 320, easing: "cubic-bezier(.2,.8,.2,1)" });
+  }
 }
-let timer;
+let timer = null, barAnim, zoomAnim;
+function stopTimer() { clearTimeout(timer); timer = null; barAnim?.cancel(); zoomAnim?.cancel(); }
 function startTimer() {
-  clearInterval(timer);
-  timer = setInterval(() => { S.slide++; S.guest++; renderSlide(); renderGuest(); }, 3000);
+  stopTimer();
+  if (S.slides.length < 2 || S.hover) return;
+  const bar = $("#slide-bar"), thumb = $("#slide-thumb");
+  if (canAnimate(bar)) {
+    barAnim = bar.animate([{ transform: "scaleX(0)" }, { transform: "scaleX(1)" }], { duration: SLIDE_MS, easing: "linear", fill: "forwards" });
+    zoomAnim = thumb.animate([{ transform: "scale(1)" }, { transform: "scale(1.07)" }], { duration: SLIDE_MS + 400, easing: "linear", fill: "forwards" });
+  }
+  timer = setTimeout(() => go(1), SLIDE_MS);
 }
-$("#slide-prev").addEventListener("click", () => { S.slide--; renderSlide(); startTimer(); });
-$("#slide-next").addEventListener("click", () => { S.slide++; renderSlide(); startTimer(); });
+function go(d) { S.dir = d; S.slide += d; renderSlide(true); startTimer(); }
+$("#slide-prev").addEventListener("click", () => go(-1));
+$("#slide-next").addEventListener("click", () => go(1));
+$("#videos").addEventListener("mouseenter", () => { S.hover = true; stopTimer(); });
+$("#videos").addEventListener("mouseleave", () => { S.hover = false; startTimer(); });
 
 /* ---------- chaînes ---------- */
 function renderChannels() {
@@ -217,6 +257,7 @@ function renderNotifs() {
   const tpl = $("#tpl-notif"), unread = S.notifs.some(n => !n.read);
   $("#notif-empty").hidden = S.notifs.length > 0;
   $("#notif-dot").hidden = !unread;
+  $("#btn-notifs").classList.toggle("has-unread", unread);
   $("#btn-mark-read").hidden = !unread;
   $("#notif-list").replaceChildren(...S.notifs.map(n => {
     const li = tpl.content.firstElementChild.cloneNode(true);
@@ -296,5 +337,6 @@ showPage("home");
 load();
 ping();
 startTimer();
+setInterval(() => { S.guest++; renderGuest(true); }, 3000);
 setInterval(tickDuration, 1000);
 setInterval(() => { if (!document.hidden) ping(); }, 15000); // le live apparaît en moins de ~15 s
