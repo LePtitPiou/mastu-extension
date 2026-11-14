@@ -293,6 +293,7 @@ function renderChannels() {
 
     $(".channel-details", li).hidden = !S.open.has(c.id);
     setImg($(".channel-banner", li), c.banner);
+    $(".channel-details", li).classList.toggle("no-banner", !c.banner); // sans bannière : le logo ne remonte plus
     setImg($(".channel-logo-big", li), c.logo);
     $(".channel-desc", li).textContent = c.description || "";
 
