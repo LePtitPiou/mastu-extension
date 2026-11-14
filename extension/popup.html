@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mastu</title>
+  <link rel="stylesheet" href="popup.css">
+  <script src="env.js"></script>
+</head>
+<body>
+
+<!-- Les icônes <i data-icon="nom"> sont chargées depuis le dossier svg/ (voir icons.js) -->
+
+<div id="notif-backdrop" hidden></div>
+
+<header id="header">
+  <h1>Mastu</h1>
+  <button id="btn-notifs" type="button" aria-label="Notifications">
+    <i data-icon="bell"></i>
+    <span id="notif-dot" hidden></span>
+  </button>
+  <button id="btn-settings" type="button" aria-label="Réglages">
+    <i data-icon="settings"></i>
+  </button>
+
+  <section id="notif-panel" hidden>
+    <div id="notif-head">
+      <h2>Notifications</h2>
+      <button id="btn-mark-read" type="button"><i data-icon="check-all"></i><span>Tout marquer comme lu</span></button>
+    </div>
+    <ul id="notif-list"></ul>
+    <p id="notif-empty" hidden>Aucune notification.</p>
+  </section>
+</header>
+
+<p id="banner-error" hidden>Impossible de joindre le serveur. Les dernières données connues sont affichées.</p>
+
+<nav id="nav">
+  <button type="button" data-page="home"><i data-icon="home"></i><span>Accueil</span></button>
+  <button type="button" data-page="channels"><i data-icon="list"></i><span>Chaînes</span></button>
+  <button type="button" data-page="twitch" class="ext-only"><i data-icon="bolt"></i><span>Twitch</span></button>
+</nav>
+
+<main>
+  <!-- ACCUEIL -->
+  <section class="page" id="page-home">
+    <section id="announce">
+      <h2>Annonce</h2>
+      <div id="announce-text" class="rich"></div>
+      <a id="announce-link" target="_blank" rel="noopener" hidden>En savoir plus</a>
+      <small id="announce-date"></small>
+    </section>
+
+    <!-- visible seulement quand Mastu est en live -->
+    <section id="live" hidden>
+      <h2>En direct</h2>
+      <!-- site web : retransmission du live sans commandes et sans son -->
+      <div id="live-player-wrap" hidden>
+        <div id="live-player"></div>
+        <a id="live-player-open" href="#" target="_blank" rel="noopener" aria-label="Ouvrir le live sur Twitch"></a>
+      </div>
+      <a id="live-link" href="#" target="_blank" rel="noopener">
+        <div id="live-media">
+          <img id="live-thumb" alt="">
+        </div>
+        <div id="live-who">
+          <div id="live-avatar">
+            <img id="live-logo" class="logo-big" alt="">
+            <img id="live-guest" class="guest-logo" alt="" hidden>
+          </div>
+          <div id="live-names">
+            <p id="live-name"></p>
+            <p id="live-with" hidden></p>
+          </div>
+        </div>
+        <h3 id="live-title"></h3>
+        <p id="live-meta">
+          <span id="live-badge">LIVE</span>
+          <span id="live-count"></span>
+          <span id="live-duration"></span>
+        </p>
+      </a>
+    </section>
+
+    <!-- dernière vidéo / TikTok / publication de chaque compte : défile toutes les 3 s, glisse au doigt, points -->
+    <section id="videos" hidden>
+      <h2>En ce moment</h2>
+      <div id="slide-viewport">
+        <div id="slide-track"></div>
+      </div>
+      <div id="slide-progress" aria-hidden="true"><div id="slide-bar"></div></div>
+      <div id="slide-nav">
+        <div id="slide-dots"></div>
+      </div>
+    </section>
+
+    <p id="home-empty" hidden>Rien à afficher pour le moment.</p>
+  </section>
+
+  <!-- CHAÎNES -->
+  <section class="page" id="page-channels" hidden>
+    <h2>Chaînes</h2>
+    <ul id="channels-list"></ul>
+  </section>
+
+  <!-- TWITCH (extension uniquement) -->
+  <section class="page ext-only" id="page-twitch" hidden>
+    <h2>Twitch</h2>
+    <p>Ces options agissent sur <a href="https://twitch.tv/mastu" target="_blank" rel="noopener">twitch.tv/mastu</a> quand la page est ouverte.</p>
+    <label><input type="checkbox" data-setting="autoOpenLive"> Ouvrir le live dans un nouvel onglet dès qu'il démarre</label>
+    <label><input type="checkbox" data-setting="muteOnStart"> Couper le son du live à l'ouverture (tu peux le remettre à la main)</label>
+    <label><input type="checkbox" data-setting="autoClaim"> Récupérer automatiquement les Crazy Coins</label>
+    <label><input type="checkbox" data-setting="hideVideo"> Cacher la fenêtre vidéo du live</label>
+    <label><input type="checkbox" data-setting="lowQuality"> Qualité minimale 160p (au prochain rechargement de la page)</label>
+    <p>Bonus récupérés : <span id="farmer-claimed">0</span></p>
+  </section>
+
+  <!-- RÉGLAGES -->
+  <section class="page" id="page-settings" hidden>
+    <h2>Réglages</h2>
+    <label>Thème
+      <select data-setting="theme">
+        <option value="auto">Automatique</option>
+        <option value="light">Clair</option>
+        <option value="dark">Sombre</option>
+      </select>
+    </label>
+
+    <h3>Chaînes préférées</h3>
+    <p class="hint">Attrape une chaîne par les points à gauche et glisse-la vers le haut ou le bas. L'ordre s'applique à la page Chaînes et à l'accueil.</p>
+    <ul id="prefs-list"></ul>
+
+    <h3>Notifications</h3>
+    <label class="ext-only"><input type="checkbox" data-setting="notifChrome"> Notifications Google Chrome</label>
+    <label><input type="checkbox" data-setting="notifLive"> Lives</label>
+    <label><input type="checkbox" data-setting="notifVideo"> Vidéos et publications</label>
+    <label><input type="checkbox" data-setting="notifNews"> Annonces</label>
+    <button id="btn-test-notif" class="ext-only" type="button">Tester une notification</button>
+
+    <p>Dernière mise à jour : <span id="settings-updated">—</span> <button id="btn-refresh" type="button"><i data-icon="refresh"></i><span>Actualiser</span></button></p>
+    <small>Version <span id="settings-version"></span></small>
+  </section>
+</main>
+
+<!-- Modèles (le script les clone) -->
+<template id="tpl-notif">
+  <li class="notif">
+    <a class="notif-link" target="_blank" rel="noopener">
+      <strong class="notif-title"></strong>
+      <span class="notif-text"></span>
+      <time class="notif-time"></time>
+    </a>
+  </li>
+</template>
+
+<template id="tpl-slide">
+  <div class="slide">
+    <a class="slide-card" target="_blank" rel="noopener" draggable="false">
+      <img class="slide-thumb" alt="" draggable="false">
+      <div class="slide-thumb slide-thumb-fallback" hidden><i data-icon="youtube"></i></div>
+      <div class="slide-chan">
+        <img class="logo slide-logo" alt="" draggable="false">
+        <span class="slide-channel"></span>
+        <i class="slide-net" data-icon="youtube"></i>
+      </div>
+      <h3 class="slide-title"></h3>
+      <p class="slide-views"></p>
+    </a>
+  </div>
+</template>
+
+<template id="tpl-dot">
+  <button type="button" class="dot"></button>
+</template>
+
+<template id="tpl-channel">
+  <li class="channel">
+    <div class="channel-bar" role="button" tabindex="0">
+      <img class="channel-logo" alt="">
+      <span class="channel-logo channel-logo-fallback" hidden><i data-icon="youtube"></i></span>
+      <div class="channel-id">
+        <i class="channel-net" data-icon="youtube"></i>
+        <span class="channel-name"></span>
+        <span class="channel-live" hidden>LIVE</span>
+      </div>
+      <span class="channel-subs"></span>
+      <a class="channel-open" target="_blank" rel="noopener" aria-label="Ouvrir la chaîne"><i data-icon="external"></i></a>
+      <i class="channel-caret" data-icon="caret"></i>
+    </div>
+    <div class="channel-details" hidden>
+      <div class="channel-hero">
+        <img class="channel-banner" alt="">
+        <img class="channel-logo-big" alt="">
+      </div>
+      <p class="channel-desc"></p>
+      <p class="channel-video-label"></p>
+      <a class="channel-video" target="_blank" rel="noopener">
+        <img class="channel-video-thumb" alt="">
+        <span class="channel-video-title"></span>
+        <span class="channel-video-meta"></span>
+      </a>
+    </div>
+  </li>
+</template>
+
+<template id="tpl-pref">
+  <li class="pref">
+    <span class="pref-grip" role="button" tabindex="0" aria-label="Déplacer la chaîne (ou flèches haut et bas du clavier)"><i data-icon="grip"></i></span>
+    <img class="pref-logo" alt="">
+    <i class="pref-net" data-icon="youtube"></i>
+    <span class="pref-name"></span>
+    <label><input type="checkbox" class="pref-visible"> Afficher</label>
+    <label><input type="checkbox" class="pref-notif"> Notifications</label>
+  </li>
+</template>
+
+<script src="config.js"></script>
+<script src="icons.js"></script>
+<script src="core.js"></script>
+<script src="web-shim.js"></script>
+<script src="rich.js"></script>
+<script src="popup.js"></script>
+</body>
+</html>
