@@ -39,6 +39,14 @@ async function mastuRefresh({ local, sync, notify, onLive }) {
     found.push({ id: "news:" + a.id, type: "news", title: "Annonce", text: a.text, url: a.link || "", ts: Date.parse(a.date) || Date.now() });
   }
 
+  // notifications envoyées à tout le monde depuis le panneau
+  const seenB = new Set(state.broadcastIds || []);
+  for (const b of data.broadcasts || []) {
+    if (seenB.has(b.id)) continue;
+    seenB.add(b.id);
+    found.push({ id: "bc:" + b.id, type: "news", title: b.title, text: b.text, url: b.link || "", ts: Date.parse(b.date) || Date.now() });
+  }
+
   const known = new Set(notifs.map(n => n.id));
   const fresh = found.filter(n => !known.has(n.id)).map(n => ({ ...n, read: first }));
   notifs = [...fresh, ...notifs].sort((x, y) => y.ts - x.ts).slice(0, 30);
@@ -51,6 +59,7 @@ async function mastuRefresh({ local, sync, notify, onLive }) {
       openedLiveId: live ? live.id : state.openedLiveId || null, // pour n'ouvrir l'onglet qu'une fois par live
       announcementId: a ? a.id : state.announcementId || null,
       videoIds: [...seen].slice(-50),
+      broadcastIds: [...seenB].slice(-50),
     },
   });
 
