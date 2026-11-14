@@ -7,22 +7,38 @@
 </head>
 <body>
 
+<!-- Icônes (SVG) : modifie ici un tracé pour changer l'icône partout -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 10a6 6 0 0 1 12 0c0 5.5 2 7 2 7H4s2-1.5 2-7z"/><path d="M10 20.5a2 2 0 0 0 4 0"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><path d="M10.52 5.57L10.77 2.68L13.23 2.68L13.48 5.57A6.6 6.6 0 0 1 15.50 6.40L15.50 6.40L17.72 4.54L19.46 6.28L17.60 8.50A6.6 6.6 0 0 1 18.43 10.52L18.43 10.52L21.32 10.77L21.32 13.23L18.43 13.48A6.6 6.6 0 0 1 17.60 15.50L17.60 15.50L19.46 17.72L17.72 19.46L15.50 17.60A6.6 6.6 0 0 1 13.48 18.43L13.48 18.43L13.23 21.32L10.77 21.32L10.52 18.43A6.6 6.6 0 0 1 8.50 17.60L8.50 17.60L6.28 19.46L4.54 17.72L6.40 15.50A6.6 6.6 0 0 1 5.57 13.48L5.57 13.48L2.68 13.23L2.68 10.77L5.57 10.52A6.6 6.6 0 0 1 6.40 8.50L6.40 8.50L4.54 6.28L6.28 4.54L8.50 6.40A6.6 6.6 0 0 1 10.52 5.57z"/><circle cx="12" cy="12" r="2.8"/></symbol>
+  <symbol id="i-external" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4"/></symbol>
+  <symbol id="i-chev-left" viewBox="0 0 24 24"><path d="M14.5 6l-6 6 6 6"/></symbol>
+  <symbol id="i-chev-right" viewBox="0 0 24 24"><path d="M9.5 6l6 6-6 6"/></symbol>
+  <symbol id="i-chev-up" viewBox="0 0 24 24"><path d="M6 14.5l6-6 6 6"/></symbol>
+  <symbol id="i-chev-down" viewBox="0 0 24 24"><path d="M6 9.5l6 6 6-6"/></symbol>
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 11l8-7 8 7"/><path d="M6 9.5V20h12V9.5"/><path d="M10 20v-5h4v5"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 7h11M9 12h11M9 17h11"/><circle cx="5" cy="7" r=".6"/><circle cx="5" cy="12" r=".6"/><circle cx="5" cy="17" r=".6"/></symbol>
+  <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 3L5 13.5h6L10 21l8-10.5h-6z"/></symbol>
+  <symbol id="i-check-all" viewBox="0 0 24 24"><path d="M2.5 12.5l4 4 8-9"/><path d="M11 16l1.5 1.5 9-10"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v5h-5"/></symbol>
+</svg>
+
+
 <header id="header">
   <h1>Mastu</h1>
 
-  <!-- Remplace les <svg> par tes icônes animées -->
   <button id="btn-notifs" type="button" aria-label="Notifications">
-    <svg viewBox="0 0 24 24"><path d="M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2zm6-6V11a6 6 0 0 0-5-5.9V4a1 1 0 0 0-2 0v1.1A6 6 0 0 0 6 11v5l-2 2v1h16v-1z"/></svg>
+    <svg class="icon"><use href="#i-bell"/></svg>
     <span id="notif-dot" hidden></span>
   </button>
   <button id="btn-settings" type="button" aria-label="Réglages">
-    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M11 1h2v4h-2zM11 19h2v4h-2zM1 11h4v2H1zM19 11h4v2h-4z"/></svg>
+    <svg class="icon"><use href="#i-settings"/></svg>
   </button>
 
   <section id="notif-panel" hidden>
     <div id="notif-head">
       <h2>Notifications</h2>
-      <button id="btn-mark-read" type="button">Tout marquer comme lu</button>
+      <button id="btn-mark-read" type="button"><svg class="icon"><use href="#i-check-all"/></svg><span>Tout marquer comme lu</span></button>
     </div>
     <ul id="notif-list"></ul>
     <p id="notif-empty" hidden>Aucune notification.</p>
@@ -32,9 +48,9 @@
 <p id="banner-error" hidden>Impossible de joindre le serveur. Les dernières données connues sont affichées.</p>
 
 <nav id="nav">
-  <button type="button" data-page="home">Accueil</button>
-  <button type="button" data-page="channels">Chaînes</button>
-  <button type="button" data-page="twitch">Twitch</button>
+  <button type="button" data-page="home"><svg class="icon"><use href="#i-home"/></svg><span>Accueil</span></button>
+  <button type="button" data-page="channels"><svg class="icon"><use href="#i-list"/></svg><span>Chaînes</span></button>
+  <button type="button" data-page="twitch"><svg class="icon"><use href="#i-bolt"/></svg><span>Twitch</span></button>
 </nav>
 
 <main>
@@ -85,13 +101,14 @@
         <h3 id="slide-title"></h3>
         <p id="slide-views"></p>
       </a>
+      <div id="slide-progress" aria-hidden="true"><div id="slide-bar"></div></div>
       <div id="slide-nav">
         <button id="slide-prev" type="button" aria-label="Vidéo précédente">
-          <svg viewBox="0 0 24 24"><path d="M15 5l-8 7 8 7z"/></svg>
+          <svg class="icon"><use href="#i-chev-left"/></svg>
         </button>
         <span id="slide-pos"></span>
         <button id="slide-next" type="button" aria-label="Vidéo suivante">
-          <svg viewBox="0 0 24 24"><path d="M9 5l8 7-8 7z"/></svg>
+          <svg class="icon"><use href="#i-chev-right"/></svg>
         </button>
       </div>
     </section>
@@ -139,7 +156,7 @@
     <label><input type="checkbox" data-setting="notifNews"> Annonces</label>
     <button id="btn-test-notif" type="button">Tester une notification</button>
 
-    <p>Dernière mise à jour : <span id="settings-updated">—</span> <button id="btn-refresh" type="button">Actualiser</button></p>
+    <p>Dernière mise à jour : <span id="settings-updated">—</span> <button id="btn-refresh" type="button"><svg class="icon"><use href="#i-refresh"/></svg><span>Actualiser</span></button></p>
     <small>Version <span id="settings-version"></span></small>
   </section>
 </main>
@@ -165,7 +182,7 @@
       </div>
       <span class="channel-subs"></span>
       <a class="channel-open" target="_blank" rel="noopener" aria-label="Ouvrir la chaîne">
-        <svg viewBox="0 0 24 24"><path d="M14 3h7v7h-2V6.4l-9.3 9.3-1.4-1.4L17.6 5H14zM5 5h6v2H7v10h10v-4h2v6H5z"/></svg>
+        <svg class="icon"><use href="#i-external"/></svg>
       </a>
     </div>
     <div class="channel-details" hidden>
@@ -186,8 +203,8 @@
   <li class="pref">
     <img class="pref-logo" alt="">
     <span class="pref-name"></span>
-    <button type="button" class="pref-up" aria-label="Monter">▲</button>
-    <button type="button" class="pref-down" aria-label="Descendre">▼</button>
+    <button type="button" class="pref-up" aria-label="Monter"><svg class="icon"><use href="#i-chev-up"/></svg></button>
+    <button type="button" class="pref-down" aria-label="Descendre"><svg class="icon"><use href="#i-chev-down"/></svg></button>
     <label><input type="checkbox" class="pref-visible"> Afficher</label>
     <label><input type="checkbox" class="pref-notif"> Notifications</label>
   </li>
