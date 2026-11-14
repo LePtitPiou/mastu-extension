@@ -2,5 +2,8 @@
 html { background: var(--bg); }
 body { width: auto; max-width: 480px; min-height: 100vh; margin: 0 auto; padding-bottom: env(safe-area-inset-bottom); }
 #notif-panel { left: 8px; right: 8px; width: auto; }
-#live-player-wrap { margin-bottom: 8px; }
-#live-player { display: block; width: 100%; aspect-ratio: 16 / 9; border: 0; background: #000; }
+
+/* Retransmission du live : la vidéo seule (pas de commandes, clics bloqués, clic = ouvrir Twitch) */
+#live-player-wrap { position: relative; aspect-ratio: 16 / 9; margin-bottom: 8px; background: #000; border-radius: 6px; overflow: hidden; }
+#live-player, #live-player iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; pointer-events: none; }
+#live-player-open { position: absolute; inset: 0; display: block; }
