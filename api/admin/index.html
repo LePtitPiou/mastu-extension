@@ -57,10 +57,6 @@ textarea{min-height:150px;resize:vertical}
 .frame-bar{display:flex;align-items:center;gap:.6rem;padding:.7rem 1rem;background:var(--accent);color:var(--accent-ink);font-family:var(--display);font-weight:800}
 .frame-body{padding:1.1rem 1rem 1.3rem}
 .frame-body h3{font-size:1.05rem;margin-bottom:.6rem}
-#pv-text{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
-#pv-text.empty{color:var(--muted)}
-#pv-link{display:inline-block;margin-top:.7rem;color:var(--accent);font-weight:600}
-#pv-date{display:block;margin-top:.7rem;color:var(--muted)}
 .caption{color:var(--muted);font-size:.875rem;margin:.8rem 0 0;max-width:400px}
 
 /* historique */
@@ -78,6 +74,47 @@ textarea{min-height:150px;resize:vertical}
 #toast.show{opacity:1}
 @media (max-width:960px){.layout{grid-template-columns:minmax(0,1fr)}.preview{position:static;order:-1}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* annonces mises en forme : mêmes règles que l'extension (popup.css) */
+:root{--text:var(--ink);--hover:rgba(127,127,127,.14)}
+.rich{overflow-wrap:anywhere}
+.rich p,.rich div{margin:0 0 .5em}
+.rich>:last-child{margin-bottom:0}
+.rich h1,.rich h2,.rich h3{margin:.3em 0 .4em;line-height:1.2}
+.rich h1{font-size:1.6em}.rich h2{font-size:1.3em}.rich h3{font-size:1.1em}
+.rich ul,.rich ol{margin:0 0 .5em;padding-left:1.4em}
+.rich blockquote{margin:0 0 .5em;padding-left:10px;border-left:3px solid var(--line);color:var(--muted)}
+.rich hr{border:0;border-top:1px solid var(--line);margin:.6em 0}
+.rich table{border-collapse:collapse;width:100%;margin:.4em 0}
+.rich td,.rich th{border:1px solid var(--line);padding:4px 8px;vertical-align:top;min-width:2em}
+.rich th{background:var(--hover);font-weight:700;text-align:left}
+.rich a{color:var(--accent)}
+
+/* éditeur */
+.tb{display:flex;flex-wrap:wrap;align-items:center;gap:4px;padding:.45rem;border:1px solid var(--line);border-bottom:0;border-radius:10px 10px 0 0;background:var(--bg)}
+.tb button,.tb select,.tb input[type=number]{height:34px;min-width:34px;padding:0 .5rem;border:1px solid transparent;border-radius:8px;background:var(--card);color:var(--ink);cursor:pointer}
+.tb button:hover,.tb select:hover{border-color:var(--line)}
+.tb button:active{background:var(--soft)}
+.tb svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;vertical-align:middle}
+.tb .sep{width:1px;height:22px;background:var(--line);margin:0 4px}
+.tb input[type=color]{width:34px;padding:2px;cursor:pointer}
+.tb-extra{display:flex;flex-wrap:wrap;align-items:center;gap:.6rem;padding:.5rem;border:1px solid var(--line);border-bottom:0;background:var(--soft);font-size:.9rem}
+.tb-extra label{display:inline-flex;align-items:center;gap:.35rem;margin:0;font-weight:500}
+.tb-extra input[type=number]{width:64px;height:30px;border:1px solid var(--line);background:var(--card)}
+.tb-extra .btn{padding:.3rem .7rem;font-size:.875rem}
+#editor{position:relative;min-height:200px;max-height:420px;overflow:auto;padding:.8rem;border:1px solid var(--line);border-radius:0 0 10px 10px;background:var(--card);color:var(--text);font:14px/1.4 system-ui,sans-serif;outline:none}
+#editor:focus{border-color:var(--accent)}
+#editor.is-empty::before{content:attr(data-placeholder);position:absolute;color:var(--muted);pointer-events:none}
+#editor td,#editor th{min-width:3em}
+.pv-box{padding:10px;border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:4px}
+.frame-body{font:14px/1.4 system-ui,sans-serif;color:var(--text)}
+.frame-body h3{font:700 15px/1.2 system-ui,sans-serif;margin:0 0 8px}
+#pv-text.empty{color:var(--muted)}
+#pv-link{display:inline-block;margin-top:6px;color:var(--accent)}
+#pv-date{display:block;margin-top:6px;color:var(--muted)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:.8rem}
+@media (max-width:560px){.two{grid-template-columns:1fr}}
+
 </style>
 </head>
 <body>
@@ -107,9 +144,44 @@ textarea{min-height:150px;resize:vertical}
       <section class="panel">
         <h2>Nouvelle annonce</h2>
         <form id="composer">
-          <label for="text">Message</label>
-          <textarea id="text" maxlength="600" placeholder="Ex. Nouvelle vidéo ce soir à 18 h !"></textarea>
-          <div class="row" style="margin-top:.35rem"><span></span><span class="count" id="count">0 / 500</span></div>
+          <label id="editor-label">Message</label>
+          <div class="tb" id="toolbar" role="toolbar" aria-label="Mise en forme">
+          <button type="button" data-cmd="bold" title="Gras" aria-label="Gras"><b>G</b></button>
+          <button type="button" data-cmd="italic" title="Italique" aria-label="Italique"><i>I</i></button>
+          <button type="button" data-cmd="underline" title="Souligné" aria-label="Souligné"><u>S</u></button>
+          <button type="button" data-cmd="strikeThrough" title="Barré" aria-label="Barré"><s>B</s></button>
+          <span class="sep"></span>
+          <select id="size" title="Taille du texte" aria-label="Taille du texte"><option value="">Taille</option><option value="12">Petit</option><option value="14">Normal</option><option value="18">Grand</option><option value="24">Très grand</option><option value="32">Titre</option></select>
+          <input id="color" type="color" value="#6441a5" title="Couleur du texte" aria-label="Couleur du texte">
+          <span class="sep"></span>
+          <button type="button" data-cmd="justifyLeft" title="Aligner à gauche" aria-label="Aligner à gauche"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 10h10M4 14h16M4 18h10"/></svg></button>
+          <button type="button" data-cmd="justifyCenter" title="Centrer" aria-label="Centrer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M7 10h10M4 14h16M7 18h10"/></svg></button>
+          <button type="button" data-cmd="justifyRight" title="Aligner à droite" aria-label="Aligner à droite"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M10 10h10M4 14h16M10 18h10"/></svg></button>
+          <span class="sep"></span>
+          <button type="button" data-cmd="insertUnorderedList" title="Liste à puces" aria-label="Liste à puces"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="5" cy="6" r=".8"/><circle cx="5" cy="12" r=".8"/><circle cx="5" cy="18" r=".8"/></svg></button>
+          <button type="button" data-cmd="insertOrderedList" title="Liste numérotée" aria-label="Liste numérotée"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6h10M10 12h10M10 18h10"/><path d="M4 5l1.5-1v4M4 14.5c0-1.3 2.5-1.3 2.5 0 0 1-2.5 1.7-2.5 3h2.5"/></svg></button>
+          <button type="button" id="tbl-btn" title="Insérer un tableau" aria-label="Insérer un tableau"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M3 15h18M9 5v14M15 5v14"/></svg></button>
+          <span class="sep"></span>
+          <button type="button" data-cmd="removeFormat" title="Effacer la mise en forme" aria-label="Effacer la mise en forme"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h12M12 5l-3 14M8 19h8M4 4l16 16"/></svg></button>
+          <button type="button" data-cmd="undo" title="Annuler" aria-label="Annuler"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3"/></svg></button>
+          <button type="button" data-cmd="redo" title="Rétablir" aria-label="Rétablir"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 14l5-5-5-5M20 9H10a6 6 0 0 0 0 12h3"/></svg></button>
+          </div>
+          <div class="tb-extra" id="tbl-pop" hidden>
+            <label>Lignes <input id="tbl-rows" type="number" min="1" max="20" value="3"></label>
+            <label>Colonnes <input id="tbl-cols" type="number" min="1" max="8" value="3"></label>
+            <label><input id="tbl-head" type="checkbox" checked> Ligne d'en-tête</label>
+            <button class="btn primary" id="tbl-insert" type="button">Insérer</button>
+          </div>
+          <div class="tb-extra" id="tbl-tools" hidden>
+            <span>Tableau :</span>
+            <button class="btn" type="button" data-t="addRow">+ Ligne</button>
+            <button class="btn" type="button" data-t="addCol">+ Colonne</button>
+            <button class="btn" type="button" data-t="delRow">− Ligne</button>
+            <button class="btn" type="button" data-t="delCol">− Colonne</button>
+            <button class="btn danger" type="button" data-t="delTable">Supprimer le tableau</button>
+          </div>
+          <div id="editor" class="rich is-empty" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="editor-label" data-placeholder="Écris ton annonce… (Entrée = nouveau paragraphe, Maj + Entrée = retour à la ligne)"></div>
+          <div class="row" style="margin-top:.35rem"><span class="hint" style="margin:0">Colle depuis Word : la mise en forme est conservée.</span><span class="count" id="count">0 / 3000</span></div>
           <label for="link" style="margin-top:.6rem">Lien (facultatif)</label>
           <input id="link" type="url" placeholder="https://…">
           <p class="err" id="form-error" role="alert"></p>
@@ -118,6 +190,22 @@ textarea{min-height:150px;resize:vertical}
             <button class="btn primary" id="publish" type="submit">Publier l'annonce</button>
           </div>
         </form>
+      </section>
+
+      <section class="panel">
+        <h2>Notification à tout le monde</h2>
+        <label for="bc-title">Titre</label>
+        <input id="bc-title" type="text" maxlength="80" placeholder="Ex. Live dans 10 minutes !">
+        <label for="bc-text" style="margin-top:.6rem">Message</label>
+        <textarea id="bc-text" maxlength="300" style="min-height:80px" placeholder="Facultatif"></textarea>
+        <label for="bc-link" style="margin-top:.6rem">Lien (facultatif)</label>
+        <input id="bc-link" type="url" placeholder="https://…">
+        <p class="err" id="bc-error" role="alert"></p>
+        <div class="row" style="margin-top:0">
+          <p class="hint" style="margin:0;max-width:34ch">Arrive dans la cloche et en notification Chrome en moins d'une minute.</p>
+          <button class="btn primary" id="bc-send" type="button">Envoyer à tout le monde</button>
+        </div>
+        <p class="hint" id="bc-last"></p>
       </section>
 
       <section class="panel">
@@ -134,7 +222,7 @@ textarea{min-height:150px;resize:vertical}
       </section>
 
       <section class="panel">
-        <h2>Notifications</h2>
+        <h2>Réinitialiser les notifications</h2>
         <p class="hint" style="margin:0 0 .8rem">Efface l'historique des notifications dans l'extension et sur le site de tous les fans.</p>
         <div class="row" style="margin-top:0">
           <span class="count" id="reset-date"></span>
@@ -155,12 +243,14 @@ textarea{min-height:150px;resize:vertical}
         <div class="frame-bar">Mastu</div>
         <div class="frame-body">
           <h3>Annonce</h3>
-          <p id="pv-text" class="empty">Ton annonce apparaîtra ici.</p>
-          <a id="pv-link" href="#" hidden>En savoir plus</a>
-          <small id="pv-date">À l'instant</small>
+          <div class="pv-box">
+            <div id="pv-text" class="rich empty">Ton annonce apparaîtra ici.</div>
+            <a id="pv-link" href="#" hidden>En savoir plus</a>
+            <small id="pv-date">À l'instant</small>
+          </div>
         </div>
       </div>
-      <p class="caption">Aperçu de l'extension à sa taille réelle. L'annonce publiée remplace l'actuelle en moins d'une minute.</p>
+      <p class="caption">Aperçu de l'extension à sa taille réelle : l'annonce publiée s'affiche exactement ainsi. Elle remplace l'actuelle en moins d'une minute.</p>
     </aside>
   </main>
 </div>
@@ -180,11 +270,14 @@ textarea{min-height:150px;resize:vertical}
 
 <p id="toast" role="status" aria-live="polite"></p>
 
+<script src="rich.js"></script>
 <script>
 const $ = s => document.querySelector(s);
 const KEY = "mastu-admin-token";
 let token = sessionStorage.getItem(KEY) || "";
 const fmt = d => new Date(d).toLocaleString("fr-FR", { dateStyle: "medium", timeStyle: "short" });
+const fmtN = n => new Intl.NumberFormat("fr-FR").format(n);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 async function api(path, opts = {}) {
   const r = await fetch(path, { ...opts, headers: { "Content-Type": "application/json", Authorization: "Bearer " + token } });
@@ -222,20 +315,126 @@ async function checkStatus() {
   } catch (_) { $("#st-dot").className = "dot off"; $("#st-text").textContent = "API : données indisponibles"; }
 }
 
-/* aperçu + compteur */
-function updatePreview() {
-  const text = $("#text").value.trim(), link = $("#link").value.trim();
-  const pv = $("#pv-text");
-  pv.textContent = text || "Ton annonce apparaîtra ici.";
-  pv.classList.toggle("empty", !text);
-  const a = $("#pv-link"); const ok = /^https?:\/\//i.test(link);
-  a.hidden = !ok; if (ok) a.href = link;
-  const n = $("#text").value.trim().length;
-  $("#count").textContent = n + " / 500";
-  $("#count").classList.toggle("over", n > 500);
+/* ====== éditeur façon Word ====== */
+const ed = $("#editor");
+try { document.execCommand("defaultParagraphSeparator", false, "p"); } catch (_) {}
+let savedRange = null;
+function saveSel() {
+  const s = getSelection();
+  if (s.rangeCount && ed.contains(s.anchorNode)) savedRange = s.getRangeAt(0).cloneRange();
 }
-$("#text").addEventListener("input", updatePreview);
+function restoreSel() {
+  ed.focus();
+  if (savedRange) { const s = getSelection(); s.removeAllRanges(); s.addRange(savedRange); }
+}
+// execCommand crée des <font> : on les remplace par des <span style="…"> (ce que l'extension sait afficher)
+const FONT_PX = { 1: 10, 2: 13, 3: 16, 4: 18, 5: 24, 6: 32, 7: 48 };
+function normalize() {
+  ed.querySelectorAll("font").forEach(f => {
+    const s = document.createElement("span");
+    if (f.getAttribute("color")) s.style.color = f.getAttribute("color");
+    const px = f.dataset.px || FONT_PX[f.getAttribute("size")];
+    if (px) s.style.fontSize = px + "px";
+    s.append(...f.childNodes);
+    f.replaceWith(s);
+  });
+}
+function applySize(px) {
+  document.execCommand("fontSize", false, "7");
+  ed.querySelectorAll('font[size="7"]').forEach(f => { f.dataset.px = px; });
+  normalize();
+  ed.querySelectorAll("span").forEach(sp => {
+    if (sp.style.fontSize === px + "px") sp.querySelectorAll('[style*="font-size"]').forEach(x => x.style.removeProperty("font-size"));
+  });
+}
+const getHtml = () => { normalize(); return sanitizeRich(ed.innerHTML); };
+
+function updatePreview() {
+  const html = getHtml(), text = ed.textContent.trim();
+  const empty = !text && !ed.querySelector("table,hr");
+  ed.classList.toggle("is-empty", empty);
+  const pv = $("#pv-text");
+  pv.classList.toggle("empty", empty);
+  if (empty) pv.textContent = "Ton annonce apparaîtra ici."; else setRich(pv, html);
+  const link = $("#link").value.trim(), a = $("#pv-link"), ok = /^https?:\/\//i.test(link);
+  a.hidden = !ok; if (ok) a.href = link;
+  $("#count").textContent = text.length + " / 3000";
+  $("#count").classList.toggle("over", text.length > 3000);
+}
+const sync = () => { saveSel(); updatePreview(); updateTools(); };
+
+// boutons de la barre d'outils (mousedown bloqué pour ne pas perdre la sélection)
+$("#toolbar").addEventListener("mousedown", e => { if (e.target.closest("button")) e.preventDefault(); });
+$("#toolbar").addEventListener("click", e => {
+  const b = e.target.closest("button[data-cmd]");
+  if (!b) return;
+  restoreSel(); document.execCommand(b.dataset.cmd, false, null); sync();
+});
+$("#size").addEventListener("change", e => {
+  const v = Number(e.target.value); e.target.value = "";
+  if (!v) return;
+  restoreSel(); applySize(v); sync();
+});
+$("#color").addEventListener("input", e => { restoreSel(); document.execCommand("foreColor", false, e.target.value); sync(); });
+
+// collage : on garde la mise en forme autorisée, on jette le reste
+ed.addEventListener("paste", e => {
+  e.preventDefault();
+  const cd = e.clipboardData, html = cd.getData("text/html"), txt = cd.getData("text/plain");
+  document.execCommand("insertHTML", false, html ? sanitizeRich(html) : esc(txt).replace(/\n/g, "<br>"));
+  sync();
+});
+["input", "keyup", "mouseup", "blur"].forEach(ev => ed.addEventListener(ev, sync));
+document.addEventListener("selectionchange", () => { if (document.activeElement === ed) { saveSel(); updateTools(); } });
 $("#link").addEventListener("input", updatePreview);
+
+/* tableaux */
+const cellOf = () => {
+  const n = getSelection().anchorNode, el = n && (n.nodeType === 1 ? n : n.parentElement), c = el && el.closest("td,th");
+  return c && ed.contains(c) ? c : null;
+};
+function updateTools() { $("#tbl-tools").hidden = !cellOf(); }
+$("#tbl-btn").addEventListener("click", () => { $("#tbl-pop").hidden = !$("#tbl-pop").hidden; });
+$("#tbl-insert").addEventListener("click", () => {
+  const clamp = (v, a, b) => Math.min(b, Math.max(a, Math.round(v) || a));
+  const r = clamp($("#tbl-rows").value, 1, 20), c = clamp($("#tbl-cols").value, 1, 8), head = $("#tbl-head").checked;
+  let h = "<table><tbody>";
+  for (let i = 0; i < r; i++) h += "<tr>" + Array.from({ length: c }, () => (head && i === 0 ? "<th><br></th>" : "<td><br></td>")).join("") + "</tr>";
+  h += "</tbody></table><p><br></p>";
+  restoreSel(); document.execCommand("insertHTML", false, h);
+  $("#tbl-pop").hidden = true; sync();
+});
+function tableOp(op) {
+  const cell = cellOf();
+  if (!cell) return;
+  const row = cell.parentElement, table = cell.closest("table"), idx = [...row.children].indexOf(cell);
+  const blank = tag => { const n = document.createElement(tag); n.innerHTML = "<br>"; return n; };
+  if (op === "addRow") { const nr = document.createElement("tr"); [...row.children].forEach(() => nr.append(blank("td"))); row.after(nr); }
+  else if (op === "addCol") [...table.rows].forEach(r => r.cells[idx] && r.cells[idx].after(blank(r.cells[idx].tagName === "TH" ? "th" : "td")));
+  else if (op === "delRow") {
+    const target = (row.nextElementSibling || row.previousElementSibling)?.cells[idx];
+    if (table.rows.length === 1) table.remove(); else { row.remove(); if (target) caretIn(target); }
+  }
+  else if (op === "delCol") {
+    const target = cell.nextElementSibling || cell.previousElementSibling;
+    if (row.cells.length === 1) table.remove(); else { [...table.rows].forEach(r => r.cells[idx] && r.cells[idx].remove()); if (target) caretIn(target); }
+  }
+  else if (op === "delTable") table.remove();
+  sync();
+}
+$("#tbl-tools").addEventListener("mousedown", e => { if (e.target.closest("button")) e.preventDefault(); });
+$("#tbl-tools").addEventListener("click", e => { const b = e.target.closest("button[data-t]"); if (b) tableOp(b.dataset.t); });
+function caretIn(cell) { const r = document.createRange(); r.selectNodeContents(cell); r.collapse(true); const s = getSelection(); s.removeAllRanges(); s.addRange(r); }
+ed.addEventListener("keydown", e => { // Tab : cellule suivante (nouvelle ligne à la fin), Maj+Tab : précédente
+  if (e.key !== "Tab") return;
+  const cell = cellOf();
+  if (!cell) return;
+  e.preventDefault();
+  const cells = [...cell.closest("table").querySelectorAll("td,th")], i = cells.indexOf(cell);
+  if (e.shiftKey) { if (cells[i - 1]) caretIn(cells[i - 1]); return; }
+  if (!cells[i + 1]) { tableOp("addRow"); const again = [...cell.closest("table").querySelectorAll("td,th")]; if (again[i + 1]) caretIn(again[i + 1]); }
+  else caretIn(cells[i + 1]);
+});
 
 /* historique */
 function renderHistory(list) {
@@ -247,18 +446,20 @@ function renderHistory(list) {
     li.querySelector(".it-date").textContent = fmt(a.date);
     li.querySelector(".badge").hidden = i !== 0;
     li.querySelector(".it-reuse").addEventListener("click", () => {
-      $("#text").value = a.text; $("#link").value = a.link || "";
-      updatePreview(); $("#text").focus(); window.scrollTo({ top: 0, behavior: "smooth" });
+      ed.innerHTML = a.html ? sanitizeRich(a.html) : esc(a.text);
+      $("#link").value = a.link || "";
+      updatePreview(); ed.focus(); window.scrollTo({ top: 0, behavior: "smooth" });
     });
     li.querySelector(".it-del").addEventListener("click", async () => {
       if (!confirm("Supprimer cette annonce ?")) return;
-      try { await api("/api/announcement/" + a.id, { method: "DELETE" }); toast("Supprimée."); refresh(); }
+      try { await api("/api/announcement/" + a.id, { method: "DELETE" }); toast("Supprimée."); loadState(); }
       catch (err) { toast(err.message); }
     });
     return li;
   }));
 }
-const fmtN = n => new Intl.NumberFormat("fr-FR").format(n);
+
+/* état complet (annonces, live, invités, notifications) */
 async function loadState() {
   const s = await api("/api/admin/state");
   renderHistory(s.announcements);
@@ -271,9 +472,35 @@ async function loadState() {
     ? "Affichés (du plus au moins suivi) : " + s.guests.map(g => g.name + (g.followers != null ? ` (${fmtN(g.followers)})` : "")).join(", ")
     : "";
   $("#reset-date").textContent = s.notifResetAt ? "Dernière réinitialisation : " + fmt(s.notifResetAt) : "";
+  $("#bc-last").textContent = s.broadcasts && s.broadcasts[0] ? `Dernier envoi : « ${s.broadcasts[0].title} » le ${fmt(s.broadcasts[0].date)}` : "";
   $("#persist-warning").hidden = s.persistent;
 }
-const refresh = loadState;
+
+/* publication */
+$("#composer").addEventListener("submit", async e => {
+  e.preventDefault();
+  $("#form-error").textContent = "";
+  const btn = $("#publish"); btn.disabled = true;
+  try {
+    await api("/api/announcement", { method: "POST", body: JSON.stringify({ html: getHtml(), link: $("#link").value }) });
+    ed.innerHTML = ""; $("#link").value = ""; updatePreview();
+    toast("Publiée."); await loadState();
+  } catch (err) {
+    $("#form-error").textContent = err.message;
+    if (err.status === 401) { sessionStorage.removeItem(KEY); location.reload(); }
+  } finally { btn.disabled = false; }
+});
+
+/* notification à tout le monde */
+$("#bc-send").addEventListener("click", async () => {
+  $("#bc-error").textContent = "";
+  if (!confirm("Envoyer cette notification à TOUS les fans ?")) return;
+  try {
+    await api("/api/admin/broadcast", { method: "POST", body: JSON.stringify({ title: $("#bc-title").value, text: $("#bc-text").value, link: $("#bc-link").value }) });
+    ["#bc-title", "#bc-text", "#bc-link"].forEach(s => { $(s).value = ""; });
+    toast("Notification envoyée."); await loadState();
+  } catch (err) { $("#bc-error").textContent = err.message; }
+});
 
 /* invités du live */
 $("#collab-start").addEventListener("click", async () => {
@@ -296,21 +523,6 @@ $("#reset-notifs").addEventListener("click", async () => {
   catch (err) { toast(err.message); }
 });
 setInterval(() => { if (!$("#app").hidden && !document.hidden) loadState().catch(() => {}); }, 20000);
-
-/* publication */
-$("#composer").addEventListener("submit", async e => {
-  e.preventDefault();
-  $("#form-error").textContent = "";
-  const btn = $("#publish"); btn.disabled = true;
-  try {
-    await api("/api/announcement", { method: "POST", body: JSON.stringify({ text: $("#text").value, link: $("#link").value }) });
-    $("#text").value = ""; $("#link").value = ""; updatePreview();
-    toast("Publiée."); await refresh();
-  } catch (err) {
-    $("#form-error").textContent = err.message;
-    if (err.status === 401) { sessionStorage.removeItem(KEY); location.reload(); }
-  } finally { btn.disabled = false; }
-});
 
 /* reconnexion automatique */
 if (token) enter().catch(() => sessionStorage.removeItem(KEY));
