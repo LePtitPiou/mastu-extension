@@ -9,12 +9,21 @@ chrome.runtime.onInstalled.addListener(() => { ensureAlarm(); refresh(); });
 chrome.runtime.onStartup.addListener(() => { ensureAlarm(); refresh(); });
 chrome.alarms.onAlarm.addListener(a => { if (a.name === ALARM) refresh(); });
 
-// Notification Google Chrome
-function notify(n) {
-  chrome.notifications.create(n.id, {
-    type: "basic", iconUrl: "icons/icon128.png", title: n.title, message: n.text || " ",
-    priority: 2, requireInteraction: n.type === "live",
-  });
+// Notification Google Chrome : logo de la chaîne (icône) + miniature de la vidéo ou du live (grande image)
+async function toDataUrl(url) {
+  if (!url) return null;
+  try {
+    const r = await fetch(url);
+    if (!r.ok) return null;
+    const blob = await r.blob();
+    return await new Promise(res => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = () => res(null); fr.readAsDataURL(blob); });
+  } catch (_) { return null; }
+}
+async function notify(n) {
+  const [icon, image] = await Promise.all([toDataUrl(n.icon), toDataUrl(n.image)]);
+  const base = { iconUrl: icon || "icons/icon128.png", title: n.title, message: n.text || " ", priority: 2, requireInteraction: n.type === "live" };
+  try { await chrome.notifications.create(n.id, image ? { ...base, type: "image", imageUrl: image } : { ...base, type: "basic" }); }
+  catch (_) { try { await chrome.notifications.create(n.id, { ...base, iconUrl: "icons/icon128.png", type: "basic" }); } catch (e) { console.error(e.message); } }
 }
 
 // Live démarré : ouvre twitch.tv/mastu dans un nouvel onglet (si l'option est activée et qu'il n'est pas déjà ouvert)
