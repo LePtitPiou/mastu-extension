@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<title>Mastu · Panneau d'annonces</title>
+<title>Mastu Tracker · Panneau</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -114,6 +114,11 @@ textarea{min-height:150px;resize:vertical}
 #pv-date{display:block;margin-top:6px;color:var(--muted)}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:.8rem}
 @media (max-width:560px){.two{grid-template-columns:1fr}}
+select,input[type=date],input[type=time]{width:100%;padding:.7rem .85rem;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink)}
+.tb select{width:auto;padding:0 .5rem}
+.chk{display:flex;align-items:center;gap:.5rem;margin:.8rem 0 .4rem;font-weight:600}
+.chk input{width:auto}
+.badge.cat{margin:0 .5rem 0 0}
 .soc{padding:1rem 0;border-top:1px solid var(--line)}
 .soc:first-child{border-top:0;padding-top:0}
 .soc h3{font-size:1.05rem;margin:0 0 .25rem}
@@ -126,7 +131,7 @@ textarea{min-height:150px;resize:vertical}
 <!-- Connexion -->
 <section id="login">
   <form id="login-form">
-    <h1>Panneau Mastu</h1>
+    <h1>Mastu Tracker · Panneau</h1>
     <p>Entre ton ADMIN_TOKEN pour gérer les annonces.</p>
     <label for="token">Token</label>
     <input id="token" type="password" autocomplete="current-password" required>
@@ -138,7 +143,7 @@ textarea{min-height:150px;resize:vertical}
 <!-- Appli -->
 <div id="app" hidden>
   <header class="top">
-    <h1>Panneau Mastu</h1>
+    <h1>Mastu Tracker · Panneau</h1>
     <div class="status"><span class="dot" id="st-dot"></span><span id="st-text">Vérification…</span></div>
     <button class="btn" id="logout" type="button">Se déconnecter</button>
   </header>
@@ -188,6 +193,11 @@ textarea{min-height:150px;resize:vertical}
           <div class="row" style="margin-top:.35rem"><span class="hint" style="margin:0">Colle depuis Word : la mise en forme est conservée.</span><span class="count" id="count">0 / 3000</span></div>
           <label for="link" style="margin-top:.6rem">Lien (facultatif)</label>
           <input id="link" type="url" placeholder="https://…">
+          <label class="chk"><input id="sched-on" type="checkbox"> Programmer l'envoi</label>
+          <div class="two" id="sched-box" hidden>
+            <div><label for="sched-date">Date</label><input id="sched-date" type="date"></div>
+            <div><label for="sched-time">Heure</label><input id="sched-time" type="time"></div>
+          </div>
           <p class="err" id="form-error" role="alert"></p>
           <div class="row">
             <p class="hint" style="margin:0;max-width:34ch">Publier envoie une notification à tous les fans qui ont activé les annonces.</p>
@@ -210,6 +220,36 @@ textarea{min-height:150px;resize:vertical}
           <button class="btn primary" id="bc-send" type="button">Envoyer à tout le monde</button>
         </div>
         <p class="hint" id="bc-last"></p>
+      </section>
+
+      <section class="panel">
+        <h2>Calendrier</h2>
+        <div class="two">
+          <div><label for="ev-cat">Catégorie</label>
+            <select id="ev-cat"><option value="youtube">YouTube</option><option value="twitch">Twitch</option><option value="event">Évènement</option><option value="other">Autres</option></select></div>
+          <div><label for="ev-text">Texte</label><input id="ev-text" type="text" maxlength="200" placeholder="Ex. Nouvelle vidéo"></div>
+        </div>
+        <div class="two" style="margin-top:.6rem">
+          <div><label for="ev-sdate">Date de début</label><input id="ev-sdate" type="date"></div>
+          <div><label for="ev-edate">Date de fin (facultatif)</label><input id="ev-edate" type="date"></div>
+        </div>
+        <div class="two" style="margin-top:.6rem">
+          <div><label for="ev-stime">Heure de début (facultatif)</label><input id="ev-stime" type="time"></div>
+          <div><label for="ev-etime">Heure de fin (facultatif)</label><input id="ev-etime" type="time"></div>
+        </div>
+        <p class="err" id="ev-error" role="alert"></p>
+        <div class="row" style="margin-top:0">
+          <span class="hint" style="margin:0">Visible dans l'onglet Calendrier de l'extension et du site.</span>
+          <button class="btn primary" id="ev-add" type="button">Ajouter au calendrier</button>
+        </div>
+        <ul id="ev-list" style="list-style:none;margin:1rem 0 0;padding:0"></ul>
+        <p class="empty-list" id="ev-empty" hidden>Aucun évènement.</p>
+      </section>
+
+      <section class="panel">
+        <h2>Annonces programmées</h2>
+        <ul id="sch-list" style="list-style:none;margin:0;padding:0"></ul>
+        <p class="empty-list" id="sch-empty" hidden>Aucune annonce programmée. Coche « Programmer l'envoi » dans le formulaire ci-dessus.</p>
       </section>
 
       <section class="panel">
@@ -251,7 +291,7 @@ textarea{min-height:150px;resize:vertical}
 
     <aside class="preview">
       <div class="frame" aria-label="Aperçu de l'annonce dans l'extension">
-        <div class="frame-bar">Mastu</div>
+        <div class="frame-bar">Mastu Tracker</div>
         <div class="frame-body">
           <h3>Annonce</h3>
           <div class="pv-box">
@@ -276,6 +316,20 @@ textarea{min-height:150px;resize:vertical}
       <button class="btn it-reuse" type="button">Reprendre</button>
       <button class="btn danger it-del" type="button">Supprimer</button>
     </div>
+  </li>
+</template>
+
+<template id="tpl-ev">
+  <li class="item">
+    <div><p><span class="badge cat ev-cat"></span><span class="ev-text"></span></p><time class="ev-when"></time></div>
+    <div class="actions"><button class="btn danger ev-del" type="button">Supprimer</button></div>
+  </li>
+</template>
+
+<template id="tpl-sch">
+  <li class="item">
+    <div><p class="sch-text"></p><time class="sch-when"></time></div>
+    <div class="actions"><button class="btn danger sch-del" type="button">Annuler</button></div>
   </li>
 </template>
 
@@ -503,6 +557,8 @@ async function loadState() {
   $("#reset-date").textContent = s.notifResetAt ? "Dernière réinitialisation : " + fmt(s.notifResetAt) : "";
   $("#bc-last").textContent = s.broadcasts && s.broadcasts[0] ? `Dernier envoi : « ${s.broadcasts[0].title} » le ${fmt(s.broadcasts[0].date)}` : "";
   renderSocials(s.socials || []);
+  renderEvents(s.events || []);
+  renderScheduled(s.scheduled || []);
   $("#persist-warning").hidden = s.persistent;
 }
 
@@ -512,9 +568,17 @@ $("#composer").addEventListener("submit", async e => {
   $("#form-error").textContent = "";
   const btn = $("#publish"); btn.disabled = true;
   try {
-    await api("/api/announcement", { method: "POST", body: JSON.stringify({ html: getHtml(), link: $("#link").value }) });
+    let publishAt;
+    if ($("#sched-on").checked) {
+      const when = new Date(`${$("#sched-date").value}T${$("#sched-time").value}`);
+      if (Number.isNaN(when.getTime())) throw new Error("Choisis une date et une heure.");
+      if (when.getTime() < Date.now() + 10000) throw new Error("La date de programmation doit être dans le futur.");
+      publishAt = when.toISOString();
+    }
+    await api("/api/announcement", { method: "POST", body: JSON.stringify({ html: getHtml(), link: $("#link").value, publishAt }) });
     ed.innerHTML = ""; $("#link").value = ""; updatePreview();
-    toast("Publiée."); await loadState();
+    $("#sched-on").checked = false; $("#sched-box").hidden = true; $("#publish").textContent = "Publier l'annonce";
+    toast(publishAt ? "Annonce programmée." : "Publiée."); await loadState();
   } catch (err) {
     $("#form-error").textContent = err.message;
     if (err.status === 401) { sessionStorage.removeItem(KEY); location.reload(); }
@@ -544,6 +608,65 @@ $("#collab-clear").addEventListener("click", async () => {
   $("#collab-error").textContent = "";
   try { await api("/api/admin/collab", { method: "DELETE" }); $("#guests").value = ""; toast("Invités retirés."); await loadState(); }
   catch (err) { $("#collab-error").textContent = err.message; }
+});
+
+/* programmer une annonce */
+$("#sched-on").addEventListener("change", e => {
+  $("#sched-box").hidden = !e.target.checked;
+  $("#publish").textContent = e.target.checked ? "Programmer l'annonce" : "Publier l'annonce";
+  if (e.target.checked && !$("#sched-date").value) {
+    const t = new Date(Date.now() + 3600e3), p = n => String(n).padStart(2, "0");
+    $("#sched-date").value = `${t.getFullYear()}-${p(t.getMonth() + 1)}-${p(t.getDate())}`;
+    $("#sched-time").value = `${p(t.getHours())}:00`;
+  }
+});
+function renderScheduled(list) {
+  $("#sch-empty").hidden = list.length > 0;
+  $("#sch-list").replaceChildren(...list.map(a => {
+    const el = $("#tpl-sch").content.firstElementChild.cloneNode(true), q = c => el.querySelector(c);
+    q(".sch-text").textContent = a.text;
+    q(".sch-when").textContent = "Publication le " + fmt(a.publishAt);
+    q(".sch-del").addEventListener("click", async () => {
+      if (!confirm("Annuler cette annonce programmée ?")) return;
+      try { await api("/api/admin/scheduled/" + encodeURIComponent(a.id), { method: "DELETE" }); toast("Annulée."); await loadState(); }
+      catch (err) { toast(err.message); }
+    });
+    return el;
+  }));
+}
+
+/* calendrier */
+const CAT_LABEL = { youtube: "YouTube", twitch: "Twitch", event: "Évènement", other: "Autres" };
+const fmtDay = d => new Date(d + "T00:00:00").toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" });
+function evWhen(e) {
+  const end = e.endDate || e.startDate;
+  if (end === e.startDate) return fmtDay(e.startDate) + " · " + (e.startTime ? (e.endTime ? `${e.startTime} – ${e.endTime}` : e.startTime) : "toute la journée");
+  return `Du ${fmtDay(e.startDate)}${e.startTime ? " " + e.startTime : ""} au ${fmtDay(end)}${e.endTime ? " " + e.endTime : ""}`;
+}
+function renderEvents(list) {
+  $("#ev-empty").hidden = list.length > 0;
+  $("#ev-list").replaceChildren(...list.map(e => {
+    const el = $("#tpl-ev").content.firstElementChild.cloneNode(true), q = c => el.querySelector(c);
+    q(".ev-cat").textContent = CAT_LABEL[e.category] || e.category;
+    q(".ev-text").textContent = e.text;
+    q(".ev-when").textContent = evWhen(e);
+    q(".ev-del").addEventListener("click", async () => {
+      if (!confirm("Supprimer cet évènement ?")) return;
+      try { await api("/api/admin/event/" + encodeURIComponent(e.id), { method: "DELETE" }); toast("Supprimé."); await loadState(); }
+      catch (err) { toast(err.message); }
+    });
+    return el;
+  }));
+}
+$("#ev-add").addEventListener("click", async () => {
+  $("#ev-error").textContent = "";
+  try {
+    await api("/api/admin/event", { method: "POST", body: JSON.stringify({
+      category: $("#ev-cat").value, text: $("#ev-text").value, startDate: $("#ev-sdate").value, endDate: $("#ev-edate").value,
+      startTime: $("#ev-stime").value, endTime: $("#ev-etime").value }) });
+    ["#ev-text", "#ev-edate", "#ev-stime", "#ev-etime"].forEach(x => { $(x).value = ""; });
+    toast("Ajouté au calendrier."); await loadState();
+  } catch (err) { $("#ev-error").textContent = err.message; }
 });
 
 /* réseaux sociaux : dernier TikTok / dernière publication Instagram */
