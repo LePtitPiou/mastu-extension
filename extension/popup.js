@@ -19,6 +19,7 @@ function ago(ts) {
   return Math.abs(h) < 24 ? rtf.format(h, "hour") : rtf.format(Math.round(h / 24), "day");
 }
 function setImg(img, src) { img.hidden = !src; if (src) img.src = src; }
+function net(el, platform) { el.dataset.icon = platform; el.classList.add("net-" + platform); } // logo SVG du réseau
 const ping = () => { try { chrome.runtime.sendMessage({ type: "refresh" })?.catch?.(() => {}); } catch (_) {} };
 
 /* ---------- préférences de chaînes (ordre, visibilité, notifications) ---------- */
@@ -61,6 +62,7 @@ async function load() {
 function render() {
   renderHome();
   renderChannels();
+  renderCalendar();
   renderNotifs();
   renderPrefs();
   $("#banner-error").hidden = !S.error;
@@ -191,8 +193,8 @@ function makeSlide(idx) {
   const views = $(".slide-views", el);
   views.hidden = v.views == null;
   if (v.views != null) views.textContent = `${nf.format(v.views)} vues`;
-  $("[data-icon]", fb).dataset.icon = c.platform;
-  $(".slide-net", el).dataset.icon = c.platform;
+  net($("[data-icon]", fb), c.platform);
+  net($(".slide-net", el), c.platform);
   hydrateIcons(el);
   return el;
 }
@@ -302,11 +304,11 @@ function renderChannels() {
     const li = tpl.content.firstElementChild.cloneNode(true);
     li.dataset.id = c.id;
     li.classList.toggle("is-open", S.open.has(c.id));
-    $(".channel-net", li).dataset.icon = c.platform; // icône du réseau à côté du nom
+    net($(".channel-net", li), c.platform); // logo du réseau à côté du nom
     const logo = $("img.channel-logo", li), fb = $(".channel-logo-fallback", li);
     setImg(logo, c.logo);
     fb.hidden = !!c.logo;
-    $("[data-icon]", fb).dataset.icon = c.platform;
+    net($("[data-icon]", fb), c.platform);
     $(".channel-name", li).textContent = c.name;
     $(".channel-live", li).hidden = !c.live;
     const subs = $(".channel-subs", li);
@@ -369,6 +371,93 @@ $("#channels-list").addEventListener("keydown", e => {
   if ((e.key === "Enter" || e.key === " ") && e.target.classList.contains("channel-bar")) { e.preventDefault(); e.target.click(); }
 });
 
+/* ---------- calendrier ---------- */
+const CATS = { youtube: { icon: "youtube", net: "youtube" }, twitch: { icon: "twitch", net: "twitch" }, event: { icon: "star", net: "event" }, other: { icon: "more", net: "other" } };
+const pad2 = n => String(n).padStart(2, "0");
+const ymd = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const dayDate = str => new Date(str + "T00:00:00");
+const endOf = e => e.endDate || e.startDate;
+const todayStr = () => ymd(new Date());
+const capital = t => t.charAt(0).toUpperCase() + t.slice(1);
+{ const t = new Date(); S.cal = { y: t.getFullYear(), m: t.getMonth(), sel: ymd(t) }; }
+
+const calEvents = () => S.data?.events || [];
+function eventsOn(day) {
+  return calEvents().filter(e => e.startDate <= day && endOf(e) >= day)
+    .sort((a, b) => (a.startTime || "").localeCompare(b.startTime || ""));
+}
+function whenText(e) {
+  const end = endOf(e), d = s => dayDate(s).toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+  if (end === e.startDate) return e.startTime ? (e.endTime ? `${e.startTime} – ${e.endTime}` : e.startTime) : "Toute la journée";
+  return `Du ${d(e.startDate)}${e.startTime ? " " + e.startTime : ""} au ${d(end)}${e.endTime ? " " + e.endTime : ""}`;
+}
+function eventItem(e, withDate) {
+  const li = $("#tpl-event").content.firstElementChild.cloneNode(true), cat = CATS[e.category] || CATS.other;
+  li.classList.add("cat-" + e.category);
+  net($("[data-icon]", li), cat.net);
+  $("[data-icon]", li).dataset.icon = cat.icon;
+  $(".cal-text", li).textContent = e.text;
+  $(".cal-when", li).textContent = (withDate ? dayDate(e.startDate).toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" }) + " · " : "") + whenText(e);
+  hydrateIcons(li);
+  return li;
+}
+function renderCalendar() {
+  const { y, m, sel } = S.cal, events = calEvents(), today = todayStr();
+  const sig = JSON.stringify([y, m, sel, today, events]);
+  if (sig === S.sig.cal) return;
+  S.sig.cal = sig;
+  $("#cal-title").textContent = new Date(y, m, 1).toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+  const start = new Date(y, m, 1 - ((new Date(y, m, 1).getDay() + 6) % 7)); // semaine du lundi
+  $("#cal-grid").replaceChildren(...Array.from({ length: 42 }, (_, i) => {
+    const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i), key = ymd(d);
+    const b = $("#tpl-day").content.firstElementChild.cloneNode(true);
+    b.dataset.day = key;
+    b.classList.toggle("other-month", d.getMonth() !== m);
+    b.classList.toggle("today", key === today);
+    b.classList.toggle("selected", key === sel);
+    $(".cal-num", b).textContent = d.getDate();
+    const cats = [...new Set(eventsOn(key).map(e => e.category))].slice(0, 4);
+    $(".cal-dots", b).replaceChildren(...cats.map(c => { const dot = $("#tpl-catdot").content.firstElementChild.cloneNode(true); dot.classList.add("cat-" + c); return dot; }));
+    b.setAttribute("aria-label", d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" }) + (cats.length ? ", évènements" : ""));
+    return b;
+  }));
+  // jour sélectionné
+  const dayEvents = eventsOn(sel);
+  $("#cal-day-title").textContent = sel === today ? "Aujourd'hui" : capital(dayDate(sel).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" }));
+  $("#cal-day-list").replaceChildren(...dayEvents.map(e => eventItem(e, false)));
+  $("#cal-day-empty").hidden = dayEvents.length > 0;
+  // à venir
+  const up = events.filter(e => endOf(e) >= today).sort((a, b) => (a.startDate + (a.startTime || "")).localeCompare(b.startDate + (b.startTime || ""))).slice(0, 6);
+  $("#cal-upcoming").replaceChildren(...up.map(e => eventItem(e, true)));
+  $("#cal-upcoming-empty").hidden = up.length > 0;
+}
+function calMove(d) {
+  const t = new Date(S.cal.y, S.cal.m + d, 1);
+  S.cal.y = t.getFullYear(); S.cal.m = t.getMonth();
+  S.sig.cal = null; renderCalendar();
+  if (canAnimate($("#cal-grid"))) $("#cal-grid").animate([{ opacity: 0, transform: `translateX(${d * 24}px)` }, { opacity: 1, transform: "none" }], { duration: 260, easing: "cubic-bezier(.2,.8,.2,1)" });
+}
+$("#cal-prev").addEventListener("click", () => calMove(-1));
+$("#cal-next").addEventListener("click", () => calMove(1));
+$("#cal-grid").addEventListener("click", e => {
+  const b = e.target.closest(".cal-day");
+  if (!b || S.calSwiped) return;
+  S.cal.sel = b.dataset.day;
+  const d = dayDate(b.dataset.day);
+  if (d.getMonth() !== S.cal.m) { S.cal.y = d.getFullYear(); S.cal.m = d.getMonth(); }
+  S.sig.cal = null; renderCalendar();
+});
+{ // glisser le calendrier à gauche / à droite pour changer de mois
+  let x0 = null;
+  const grid = $("#cal-grid");
+  grid.addEventListener("pointerdown", e => { x0 = e.clientX; S.calSwiped = false; });
+  grid.addEventListener("pointerup", e => {
+    if (x0 === null) return;
+    const dx = e.clientX - x0; x0 = null;
+    if (Math.abs(dx) > 50) { S.calSwiped = true; setTimeout(() => { S.calSwiped = false; }, 60); calMove(dx < 0 ? 1 : -1); }
+  });
+}
+
 /* ---------- notifications ---------- */
 function renderNotifs() {
   const tpl = $("#tpl-notif"), unread = S.notifs.some(n => !n.read);
@@ -382,6 +471,9 @@ function renderNotifs() {
     li.dataset.type = n.type;
     const a = $(".notif-link", li);
     if (n.url) a.href = n.url; else a.removeAttribute("href");
+    const img = $(".notif-img", li), pic = n.image || n.icon;
+    setImg(img, pic);
+    img.classList.toggle("is-logo", !n.image && !!n.icon);
     $(".notif-title", li).textContent = n.title;
     $(".notif-text", li).textContent = n.text || "";
     $(".notif-time", li).textContent = ago(n.ts);
@@ -435,7 +527,7 @@ function renderPrefs() {
     const li = tpl.content.firstElementChild.cloneNode(true);
     li.dataset.id = c.id;
     setImg($(".pref-logo", li), c.logo);
-    $(".pref-net", li).dataset.icon = c.platform;
+    net($(".pref-net", li), c.platform);
     $(".pref-name", li).textContent = c.name;
     const vis = $(".pref-visible", li), notif = $(".pref-notif", li), grip = $(".pref-grip", li);
     vis.checked = !p.hidden[c.id];
