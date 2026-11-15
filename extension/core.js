@@ -23,7 +23,7 @@ async function mastuRefresh({ local, sync, notify, onLive }) {
   const tw = data.channels.find(c => c.platform === "twitch" && c.main);
   const live = tw && tw.live;
   if (live && live.id !== state.liveId && !muted[tw.id]) {
-    found.push({ id: "live:" + live.id, type: "live", title: "Mastu est en live !", text: live.title, url: live.url, ts: Date.parse(live.startedAt) });
+    found.push({ id: "live:" + live.id, type: "live", title: "Mastu est en live !", text: live.title, url: live.url, ts: Date.parse(live.startedAt), icon: tw.logo, image: live.thumbnail });
   }
 
   const seen = new Set(state.videoIds || []);
@@ -31,7 +31,7 @@ async function mastuRefresh({ local, sync, notify, onLive }) {
     if (c.platform !== "twitch" && c.latest && !seen.has(c.latest.id)) { // YouTube, TikTok, Instagram
       seen.add(c.latest.id);
       const kind = { youtube: "Nouvelle vidéo", tiktok: "Nouveau TikTok", instagram: "Nouvelle publication" }[c.platform] || "Nouveauté";
-      if (!muted[c.id]) found.push({ id: "video:" + c.latest.id, type: "video", title: kind + " • " + c.name, text: c.latest.title, url: c.latest.url, ts: Date.parse(c.latest.publishedAt) || Date.now() });
+      if (!muted[c.id]) found.push({ id: "video:" + c.latest.id, type: "video", title: kind + " • " + c.name, text: c.latest.title, url: c.latest.url, ts: Date.parse(c.latest.publishedAt) || Date.now(), icon: c.logo, image: c.latest.thumbnail });
     }
   }
 
