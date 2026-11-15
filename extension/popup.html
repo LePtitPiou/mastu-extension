@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Mastu</title>
+  <title>Mastu Tracker</title>
   <link rel="stylesheet" href="popup.css">
   <script src="env.js"></script>
 </head>
@@ -14,7 +14,7 @@
 <div id="notif-backdrop" hidden></div>
 
 <header id="header">
-  <h1>Mastu</h1>
+  <h1>Mastu Tracker</h1>
   <button id="btn-notifs" type="button" aria-label="Notifications">
     <i data-icon="bell"></i>
     <span id="notif-dot" hidden></span>
@@ -38,6 +38,7 @@
 <nav id="nav">
   <button type="button" data-page="home"><i data-icon="home"></i><span>Accueil</span></button>
   <button type="button" data-page="channels"><i data-icon="list"></i><span>Chaînes</span></button>
+  <button type="button" data-page="calendar"><i data-icon="calendar"></i><span>Calendrier</span></button>
   <button type="button" data-page="twitch" class="ext-only"><i data-icon="bolt"></i><span>Twitch</span></button>
 </nav>
 
@@ -103,6 +104,30 @@
     <ul id="channels-list"></ul>
   </section>
 
+  <!-- CALENDRIER -->
+  <section class="page" id="page-calendar" hidden>
+    <h2>Calendrier</h2>
+    <div id="cal-head">
+      <button id="cal-prev" type="button" aria-label="Mois précédent"><i data-icon="chevron-left"></i></button>
+      <strong id="cal-title"></strong>
+      <button id="cal-next" type="button" aria-label="Mois suivant"><i data-icon="chevron-right"></i></button>
+    </div>
+    <div id="cal-weekdays" aria-hidden="true"><span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span><span>D</span></div>
+    <div id="cal-grid"></div>
+    <ul id="cal-legend">
+      <li><span class="cat-dot cat-youtube"></span>YouTube</li>
+      <li><span class="cat-dot cat-twitch"></span>Twitch</li>
+      <li><span class="cat-dot cat-event"></span>Évènement</li>
+      <li><span class="cat-dot cat-other"></span>Autres</li>
+    </ul>
+    <h3 id="cal-day-title"></h3>
+    <ul id="cal-day-list" class="cal-list"></ul>
+    <p id="cal-day-empty" hidden>Rien de prévu ce jour-là.</p>
+    <h3 id="cal-upcoming-title">À venir</h3>
+    <ul id="cal-upcoming" class="cal-list"></ul>
+    <p id="cal-upcoming-empty" hidden>Aucun évènement à venir.</p>
+  </section>
+
   <!-- TWITCH (extension uniquement) -->
   <section class="page ext-only" id="page-twitch" hidden>
     <h2>Twitch</h2>
@@ -142,13 +167,24 @@
   </section>
 </main>
 
+<footer id="footer">
+  <a class="foot-link net-discord" href="https://discord.gg/REMPLACE-MOI" target="_blank" rel="noopener" aria-label="Discord" title="Discord"><i data-icon="discord"></i></a>
+  <a class="foot-link net-instagram" href="https://www.instagram.com/mastuu_/" target="_blank" rel="noopener" aria-label="Instagram" title="Instagram"><i data-icon="instagram"></i></a>
+  <a class="foot-link net-tiktok" href="https://www.tiktok.com/@mastuu_" target="_blank" rel="noopener" aria-label="TikTok" title="TikTok"><i data-icon="tiktok"></i></a>
+  <a class="foot-link net-twitch" href="https://www.twitch.tv/mastu" target="_blank" rel="noopener" aria-label="Twitch" title="Twitch"><i data-icon="twitch"></i></a>
+  <a class="foot-link net-youtube" href="https://www.youtube.com/@Mastu" target="_blank" rel="noopener" aria-label="YouTube" title="YouTube"><i data-icon="youtube"></i></a>
+</footer>
+
 <!-- Modèles (le script les clone) -->
 <template id="tpl-notif">
   <li class="notif">
     <a class="notif-link" target="_blank" rel="noopener">
-      <strong class="notif-title"></strong>
-      <span class="notif-text"></span>
-      <time class="notif-time"></time>
+      <img class="notif-img" alt="" hidden>
+      <span class="notif-body">
+        <strong class="notif-title"></strong>
+        <span class="notif-text"></span>
+        <time class="notif-time"></time>
+      </span>
     </a>
   </li>
 </template>
@@ -167,6 +203,24 @@
       <p class="slide-views"></p>
     </a>
   </div>
+</template>
+
+<template id="tpl-day">
+  <button type="button" class="cal-day"><span class="cal-num"></span><span class="cal-dots"></span></button>
+</template>
+
+<template id="tpl-catdot">
+  <span class="cat-dot"></span>
+</template>
+
+<template id="tpl-event">
+  <li class="cal-event">
+    <span class="cal-cat"><i data-icon="star"></i></span>
+    <div class="cal-body">
+      <p class="cal-text"></p>
+      <p class="cal-when"></p>
+    </div>
+  </li>
 </template>
 
 <template id="tpl-dot">
