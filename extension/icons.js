@@ -2,7 +2,7 @@
 // Pour ajouter ou changer une icône : crée / remplace svg/nom.svg, puis ajoute "nom" dans la liste ci-dessous
 // et utilise <i data-icon="nom"></i> dans popup.html. Les SVG sont insérés tels quels (couleur = currentColor, animations possibles).
 const ICON_NAMES = ["bell", "settings", "home", "list", "bolt", "check-all", "refresh", "external", "caret", "grip",
-  "youtube", "twitch", "instagram", "tiktok"];
+  "youtube", "twitch", "instagram", "tiktok", "discord", "calendar", "star", "more", "chevron-left", "chevron-right"];
 
 const ICON_CACHE = {};
 const iconsReady = Promise.all(ICON_NAMES.map(async name => {
@@ -17,6 +17,7 @@ function hydrateIcons(root = document) {
     const src = doc.documentElement;
     if (!src || src.nodeName !== "svg") return;
     const svg = document.importNode(src, true);
+    svg.querySelectorAll("metadata").forEach(m => m.remove()); // métadonnées inutiles
     svg.classList.add("icon");
     ph.classList.forEach(c => svg.classList.add(c));
     svg.setAttribute("aria-hidden", "true");
