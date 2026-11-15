@@ -45,7 +45,7 @@ async function cached(key, ttl, fn) {
 const KEY = 'mastu:state';
 const FILE = path.join(DATA_DIR || __dirname, 'state.json');
 const PERSISTENT = !!(UPSTASH_REDIS_REST_URL || DATA_DIR);
-const store = { announcements: [], notifResetAt: 0, collab: null, broadcasts: [], posts: {}, igToken: null, igTokenAt: 0 };
+const store = { announcements: [], notifResetAt: 0, collab: null, broadcasts: [], posts: {}, igToken: null, igTokenAt: 0, events: [], scheduled: [] };
 let loaded = false;
 
 async function upstash(cmd) {
@@ -314,6 +314,27 @@ const toPlain = html => sanitizeHtml(String(html || '').replace(/<\/(p|div|li|tr
   .replace(/&nbsp;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&')
   .replace(/\s+/g, ' ').trim();
 
+// ---------- annonces programmées ----------
+let dueCount = 0;
+async function publishDue() {
+  const due = store.scheduled.filter(a => Date.parse(a.publishAt) <= Date.now());
+  if (!due.length) return;
+  try {
+    await mutate(() => {
+      const published = due.map(a => ({ id: String(Date.now()) + (dueCount++ % 1000), text: a.text, html: a.html, link: a.link, date: a.publishAt }));
+      store.announcements = [...published, ...store.announcements].sort((x, y) => Date.parse(y.date) - Date.parse(x.date)).slice(0, 50);
+      store.scheduled = store.scheduled.filter(a => !due.includes(a));
+    });
+  } catch (e) { console.error(e.message); }
+}
+setInterval(() => publishDue().catch(() => {}), 15000).unref();
+
+// ---------- calendrier ----------
+const CATEGORIES = ['youtube', 'twitch', 'event', 'other'];
+const isDate = v => /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v + 'T00:00:00Z'));
+const isTime = v => /^([01]\d|2[0-3]):[0-5]\d$/.test(v);
+const byStart = (a, b) => (a.startDate + (a.startTime || '')).localeCompare(b.startDate + (b.startTime || ''));
+
 // ---------- authentification admin ----------
 const fails = new Map();
 function auth(req, res, next) {
@@ -348,10 +369,12 @@ app.get('/health', (_q, r) => r.send('ok'));
 app.get('/api/data', async (_q, res) => {
   try {
     await ensureLoaded().catch(() => {});
+    await publishDue();
     const base = await buildData();
     res.set('Cache-Control', 'no-store').json({
       ...base, announcement: store.announcements[0] || null, notifResetAt: store.notifResetAt,
       broadcasts: store.broadcasts.filter(b => Date.now() - Date.parse(b.date) < 7 * 864e5).slice(0, 10),
+      events: store.events.filter(e => (e.endDate || e.startDate) >= new Date(Date.now() - 45 * 864e5).toISOString().slice(0, 10)),
     });
   } catch (e) { console.error(e.message); res.status(502).json({ error: 'upstream' }); }
 });
@@ -364,9 +387,12 @@ const storageError = (res, e) => { console.error(e.message); res.status(503).jso
 
 app.get('/api/admin/state', auth, async (_q, res) => {
   await ensureLoaded().catch(() => {});
+  await publishDue();
   const tw = await getTwitchCached().catch(() => null);
   res.json({
-    announcements: store.announcements, notifResetAt: store.notifResetAt, persistent: PERSISTENT, broadcasts: store.broadcasts.slice(0, 5),
+    announcements: store.announcements, notifResetAt: store.notifResetAt, persistent: PERSISTENT,
+    scheduled: [...store.scheduled].sort((a, b) => Date.parse(a.publishAt) - Date.parse(b.publishAt)),
+    events: store.events.filter(e => (e.endDate || e.startDate) >= new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10)), broadcasts: store.broadcasts.slice(0, 5),
     socials: ACCOUNTS.filter(a => a.platform === 'instagram' || a.platform === 'tiktok').map(a => ({
       id: socialId(a), platform: a.platform, name: a.name || '@' + String(a.username).replace(/^@/, ''), post: store.posts[socialId(a)] || null, api: a.platform === 'instagram' && !!igToken() })),
     live: tw?.live ? { id: tw.live.id, title: tw.live.title, viewers: tw.live.viewers } : null,
@@ -379,12 +405,47 @@ app.post('/api/announcement', auth, express.json({ limit: '300kb' }), async (req
   const html = req.body?.html != null ? cleanHtml(req.body.html) : '';
   const text = html ? toPlain(html) : String(req.body?.text || '').trim();
   const link = String(req.body?.link || '').trim();
+  const publishAt = req.body?.publishAt ? new Date(req.body.publishAt) : null;
   if (!text && !/<(table|hr)/i.test(html)) return res.status(400).json({ error: "L'annonce est vide." });
   if (html.length > 40000) return res.status(400).json({ error: 'Annonce trop longue.' });
   if (text.length > 3000) return res.status(400).json({ error: 'Texte trop long (3000 caractères maximum).' });
   if (link && !/^https?:\/\//i.test(link)) return res.status(400).json({ error: 'Le lien doit commencer par http:// ou https://.' });
-  const a = { id: String(Date.now()), text: text.slice(0, 500), html, link, date: new Date().toISOString() };
-  try { await mutate(() => { store.announcements = [a, ...store.announcements].slice(0, 50); }); res.json(a); }
+  if (publishAt && Number.isNaN(publishAt.getTime())) return res.status(400).json({ error: 'Date de programmation invalide.' });
+  try {
+    if (publishAt && publishAt.getTime() > Date.now() + 5000) { // programmée
+      const a = { id: 's' + Date.now(), text: text.slice(0, 500), html, link, publishAt: publishAt.toISOString() };
+      await mutate(() => { store.scheduled = [...store.scheduled, a].slice(-50); });
+      return res.json({ scheduled: true, ...a });
+    }
+    const a = { id: String(Date.now()), text: text.slice(0, 500), html, link, date: new Date().toISOString() };
+    await mutate(() => { store.announcements = [a, ...store.announcements].slice(0, 50); });
+    res.json(a);
+  } catch (e) { storageError(res, e); }
+});
+app.delete('/api/admin/scheduled/:id', auth, async (req, res) => {
+  try { await mutate(() => { store.scheduled = store.scheduled.filter(a => a.id !== req.params.id); }); res.json({ ok: true }); }
+  catch (e) { storageError(res, e); }
+});
+
+// Calendrier : catégorie, texte, dates et heures de début / fin
+app.post('/api/admin/event', auth, express.json({ limit: '20kb' }), async (req, res) => {
+  const b = req.body || {};
+  const category = String(b.category || ''), text = String(b.text || '').trim();
+  const startDate = String(b.startDate || ''), endDate = String(b.endDate || '') || startDate;
+  const startTime = String(b.startTime || ''), endTime = String(b.endTime || '');
+  if (!CATEGORIES.includes(category)) return res.status(400).json({ error: 'Catégorie invalide.' });
+  if (!text) return res.status(400).json({ error: 'Le texte est vide.' });
+  if (text.length > 200) return res.status(400).json({ error: 'Texte trop long (200 caractères maximum).' });
+  if (!isDate(startDate)) return res.status(400).json({ error: 'Date de début invalide.' });
+  if (!isDate(endDate) || endDate < startDate) return res.status(400).json({ error: 'La date de fin doit être après la date de début.' });
+  if ((startTime && !isTime(startTime)) || (endTime && !isTime(endTime))) return res.status(400).json({ error: 'Heure invalide.' });
+  if (endDate === startDate && startTime && endTime && endTime < startTime) return res.status(400).json({ error: "L'heure de fin doit être après l'heure de début." });
+  const ev = { id: String(Date.now()), category, text, startDate, endDate, startTime, endTime };
+  try { await mutate(() => { store.events = [...store.events, ev].sort(byStart).slice(-300); }); res.json(ev); }
+  catch (e) { storageError(res, e); }
+});
+app.delete('/api/admin/event/:id', auth, async (req, res) => {
+  try { await mutate(() => { store.events = store.events.filter(e => e.id !== req.params.id); }); res.json({ ok: true }); }
   catch (e) { storageError(res, e); }
 });
 
