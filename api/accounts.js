@@ -12,7 +12,7 @@
 // (section « Réseaux sociaux ») ou automatiquement pour Instagram si INSTAGRAM_ACCESS_TOKEN est défini sur Render.
 // ─────────────────────────────────────────────────────────────────────────────
 module.exports = [
-  { platform: "twitch", login: "stundzow", main: true },
+  { platform: "twitch", login: "mastu", main: true },
   { platform: "youtube", handle: "@Mastu" },
   { platform: "youtube", id: "UCLnv0iKl-QbLnkuF-aSZKTQ" }, // Mastu Gear 2
   { platform: "youtube", id: "UCW2JcUbafBUzIYP6X1-3YJQ" }, // Mastu+
