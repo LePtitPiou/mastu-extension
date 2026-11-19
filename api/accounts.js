@@ -13,6 +13,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 module.exports = [
   { platform: "twitch", login: "mastu", main: true },
+  { platform: "twitch", login: "stundzow", main: true }
   { platform: "youtube", handle: "@Mastu" },
   { platform: "youtube", id: "UCLnv0iKl-QbLnkuF-aSZKTQ" }, // Mastu Gear 2
   { platform: "youtube", id: "UCW2JcUbafBUzIYP6X1-3YJQ" }, // Mastu+
